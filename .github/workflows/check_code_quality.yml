@@ -1,0 +1,28 @@
+name: Check Code Quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Check Code Quality
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    - uses: actions/cache@v2
+      with:
+        path: ${{ env.pythonLocation }}
+        key: cache_v2_${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
+    - name: Install Package
+      run: pip install '.[dev]'
+    - name: Check Code Quality
+      run: |
+        black --check .
+        isort --check .
