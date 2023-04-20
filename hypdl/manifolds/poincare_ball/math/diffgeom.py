@@ -97,3 +97,13 @@ def dist(
         / c.sqrt()
         * (c.sqrt() * mobius_add(-x, y, c, dim=dim).norm(dim=dim, keepdim=keepdim)).atanh()
     )
+
+
+def euc_to_tangent(
+    x: torch.Tensor,
+    u: torch.Tensor,
+    c: torch.Tensor,
+    dim: int = -1,
+) -> torch.Tensor:
+    lambda_x = 2 / (1 - c * x.pow(2).sum(dim=dim, keepdim=True)).clamp_min(1e-15)
+    return u / lambda_x**2

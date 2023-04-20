@@ -1,5 +1,3 @@
-from math.linalg import poincare_fully_connected, poincare_mlr
-from math.stats import frechet_mean, frechet_variance
 from typing import Optional
 
 import torch.nn as nn
@@ -8,6 +6,7 @@ from torch import Tensor, as_tensor, float32
 from ..base import Manifold
 from .math.diffgeom import (
     dist,
+    euc_to_tangent,
     expmap,
     expmap0,
     gyration,
@@ -17,6 +16,8 @@ from .math.diffgeom import (
     project,
     transp,
 )
+from .math.linalg import poincare_fully_connected, poincare_mlr
+from .math.stats import frechet_mean, frechet_variance
 
 
 class PoincareBall(Manifold):
@@ -27,7 +28,7 @@ class PoincareBall(Manifold):
     but changed to use hyperbolic torch functions.
     """
 
-    def __init__(self, c=1.0, learnable=True):
+    def __init__(self, c=1.0, learnable=False):
         super(PoincareBall, self).__init__()
         c = as_tensor(c, dtype=float32)
         self.isp_c = nn.Parameter(c, requires_grad=learnable)
@@ -63,6 +64,9 @@ class PoincareBall(Manifold):
 
     def dist(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
         return dist(x=x, y=y, c=self.c, dim=dim)
+
+    def euc_to_tangent(self, x: Tensor, u: Tensor, dim: int = -1) -> Tensor:
+        return euc_to_tangent(x=x, u=u, c=self.c, dim=dim)
 
     def mlr(self, x: Tensor, z: Tensor, r: Tensor) -> Tensor:
         return poincare_mlr(x=x, z=z, r=r, c=self.c)

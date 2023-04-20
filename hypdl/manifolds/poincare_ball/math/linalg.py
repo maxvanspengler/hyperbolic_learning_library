@@ -6,7 +6,7 @@ import torch
 def poincare_mlr(
     x: torch.Tensor,
     z: torch.Tensor,
-    r: Optional(torch.Tensor),
+    r: Optional[torch.Tensor],
     c: torch.Tensor,
 ) -> torch.Tensor:
     """

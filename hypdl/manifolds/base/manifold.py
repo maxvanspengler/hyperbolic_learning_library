@@ -6,6 +6,7 @@ from torch.nn import Module
 
 
 class Manifold(Module, ABC):
+    # TODO: Fix return types of methods for all manifolds
     def __init__(self) -> None:
         super(Manifold, self).__init__()
 
@@ -48,6 +49,10 @@ class Manifold(Module, ABC):
 
     @abstractmethod
     def dist(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def euc_to_tangent(x: Tensor, u: Tensor, dim: int = -1) -> Tensor:
         raise NotImplementedError
 
     @abstractmethod
