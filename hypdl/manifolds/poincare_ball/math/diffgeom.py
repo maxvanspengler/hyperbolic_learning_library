@@ -30,7 +30,7 @@ def project(x: torch.Tensor, c: torch.Tensor, dim: int = -1, eps: float = -1.0):
 
 def expmap0(v: torch.Tensor, c: torch.Tensor, dim: int = -1):
     v_norm_c_sqrt = v.norm(dim=dim, keepdim=True).clamp_min(1e-15) * c.sqrt()
-    return project(torch.tanh(v_norm_c_sqrt) * v / v_norm_c_sqrt, c)
+    return project(torch.tanh(v_norm_c_sqrt) * v / v_norm_c_sqrt, c, dim=dim)
 
 
 def logmap0(y: torch.Tensor, c: torch.Tensor, dim: int = -1):
