@@ -1,11 +1,13 @@
 from typing import Tuple
 
-from torch import Tensor, empty, eye
+from torch import empty, eye
 from torch.nn import Module, Parameter, Unfold
 from torch.nn.init import normal_, zeros_
 
-from ...manifolds import Manifold
-from ...utils.math import beta_func
+from hypdl.manifolds import Manifold
+from hypdl.tensors import ManifoldTensor
+from hypdl.utils.layer_utils import check_if_man_dims_match, check_if_manifolds_match
+from hypdl.utils.math import beta_func
 
 
 class HConvolution2d(Module):
@@ -65,7 +67,7 @@ class HConvolution2d(Module):
         if self.has_bias:
             zeros_(self.bias)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: ManifoldTensor) -> ManifoldTensor:
         """
         Forward pass of the 2 dimensional convolution layer
 
@@ -78,15 +80,18 @@ class HConvolution2d(Module):
         -------
         tensor (height, width, batchsize, output channels)
         """
+        check_if_manifolds_match(layer=self, input=x)
+        check_if_man_dims_match(layer=self, man_dim=1, input=x)
+
         batch_size, height, width = x.size(0), x.size(2), x.size(3)
         out_height = (height - self.kernel_dims[0] + 1 + 2 * self.padding) // self.stride
         out_width = (width - self.kernel_dims[1] + 1 + 2 * self.padding) // self.stride
 
-        x = self.manifold.logmap0(x, dim=-1)
+        x = self.manifold.logmap0(x, dim=1)
         x = x * self.beta_n / self.beta_ni
         x = self.unfold(x)
         x = x.transpose(1, 2)
         x = self.manifold.expmap0(x, dim=-1)
         x = self.manifold.fully_connected(x=x, z=self.weights, bias=self.bias)
         x = x.transpose(1, 2).reshape(batch_size, self.out_channels, out_height, out_width)
-        return self.manifold.logmap0(x, dim=1)
+        return x

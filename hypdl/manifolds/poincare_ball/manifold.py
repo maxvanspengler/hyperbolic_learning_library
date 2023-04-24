@@ -3,7 +3,8 @@ from typing import Optional
 import torch.nn as nn
 from torch import Tensor, as_tensor, float32
 
-from ..base import Manifold
+from hypdl.manifolds.base import Manifold
+
 from .math.diffgeom import (
     dist,
     euc_to_tangent,

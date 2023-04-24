@@ -1,7 +1,7 @@
 from torch import Tensor, tensor, zeros
 from torch.nn import Module, Parameter
 
-from ...manifolds import Manifold
+from hypdl.manifolds import Manifold
 
 
 class HBatchNorm(Module):
