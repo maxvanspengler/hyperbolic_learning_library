@@ -1,9 +1,14 @@
 from typing import Optional
 
 import torch.nn as nn
-from torch import Tensor, as_tensor, float32
+from torch import Tensor, as_tensor, empty, eye, float32, no_grad
+from torch.nn.common_types import _size_2_t
+from torch.nn.functional import unfold
+from torch.nn.init import normal_, zeros_
 
 from hypdl.manifolds.base import Manifold
+from hypdl.tensors import ManifoldParameter, ManifoldTensor
+from hypdl.utils.math import beta_func
 
 from .math.diffgeom import (
     dist,
@@ -17,7 +22,7 @@ from .math.diffgeom import (
     project,
     transp,
 )
-from .math.linalg import poincare_fully_connected, poincare_mlr
+from .math.linalg import poincare_fully_connected, poincare_hyperplane_dists
 from .math.stats import frechet_mean, frechet_variance
 
 
@@ -69,10 +74,10 @@ class PoincareBall(Manifold):
     def euc_to_tangent(self, x: Tensor, u: Tensor, dim: int = -1) -> Tensor:
         return euc_to_tangent(x=x, u=u, c=self.c, dim=dim)
 
-    def mlr(self, x: Tensor, z: Tensor, r: Tensor) -> Tensor:
-        return poincare_mlr(x=x, z=z, r=r, c=self.c)
+    def hyperplane_dists(self, x: Tensor, z: Tensor, r: Optional[Tensor]) -> Tensor:
+        return poincare_hyperplane_dists(x=x, z=z, r=r, c=self.c)
 
-    def fully_connected(self, x: Tensor, z: Tensor, bias: Tensor) -> Tensor:
+    def fully_connected(self, x: Tensor, z: Tensor, bias: Optional[Tensor]) -> Tensor:
         y = poincare_fully_connected(x=x, z=z, bias=bias, c=self.c)
         return self.project(y, dim=-1)
 
@@ -83,3 +88,69 @@ class PoincareBall(Manifold):
         self, x: Tensor, mu: Tensor, dim: int = -1, w: Optional[Tensor] = None
     ) -> Tensor:
         return frechet_variance(x=x, mu=mu, c=self.c, dim=dim, w=w)
+
+    def construct_dl_parameters(
+        self, in_features: int, out_features: int, bias: bool = True
+    ) -> tuple[ManifoldParameter, Optional[ManifoldParameter]]:
+        weight = ManifoldParameter(
+            data=empty(in_features, out_features),
+            manifold=self,
+            man_dim=-1,
+        )
+
+        if bias:
+            b = ManifoldParameter(
+                data=empty(out_features),
+                manifold=self,
+                man_dim=-1,
+            )
+        else:
+            b = None
+
+        return weight, b
+
+    def reset_parameters(
+        self, weight: ManifoldParameter, bias: Optional[ManifoldParameter]
+    ) -> None:
+        in_features, out_features = weight.size()
+        if in_features <= out_features:
+            with no_grad():
+                weight.copy_(1 / 2 * eye(in_features, out_features))
+        else:
+            normal_(
+                weight,
+                mean=0,
+                std=(2 * in_features * out_features) ** -0.5,
+            )
+        if bias is not None:
+            zeros_(bias)
+
+    def unfold(
+        self,
+        input: ManifoldTensor,
+        kernel_size: _size_2_t,
+        dilation: _size_2_t = 1,
+        padding: _size_2_t = 0,
+        stride: _size_2_t = 1,
+    ):
+        # TODO: doesn't work with tuple dilation, padding, and stride. Should add this.
+        # TODO: may have to cache some of this stuff for efficiency.
+        in_channels = input.size(1)
+        if len(kernel_size) == 2:
+            kernel_vol = kernel_size[0] * kernel_size[1]
+        else:
+            kernel_vol = kernel_size**2
+            kernel_size = (kernel_size, kernel_size)
+
+        beta_ni = beta_func(in_channels / 2, 1 / 2)
+        beta_n = beta_func(in_channels * kernel_vol / 2, 1 / 2)
+
+        input = self.logmap0(input, dim=1)
+        input = input * beta_n / beta_ni
+        return unfold(
+            input=input,
+            kernel_size=kernel_size,
+            dilation=dilation,
+            padding=padding,
+            stride=stride,
+        )

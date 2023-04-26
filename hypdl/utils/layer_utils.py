@@ -17,6 +17,9 @@ def check_if_manifolds_match(layer: Module, input: ManifoldTensor) -> None:
 def check_if_man_dims_match(layer: Module, man_dim: int, input: ManifoldTensor) -> None:
     if man_dim < 0:
         new_man_dim = input.dim() + man_dim
+    else:
+        new_man_dim = man_dim
+
     if input.man_dim != new_man_dim:
         raise ValueError(
             f"Layer of type {layer.__class__.__name__} expects the manifold dimension to be {man_dim},"

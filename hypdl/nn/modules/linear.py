@@ -1,6 +1,4 @@
-from torch import empty, eye
-from torch.nn import Module, Parameter
-from torch.nn.init import normal_, zeros_
+from torch.nn import Module
 
 from hypdl.manifolds import Manifold
 from hypdl.tensors import ManifoldTensor
@@ -16,32 +14,24 @@ class HLinear(Module):
         out_features: int,
         manifold: Manifold,
         bias: bool = True,
-        id_init: bool = True,
     ) -> None:
         super(HLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.manifold = manifold
         self.has_bias = bias
-        self.id_init = id_init
 
-        self.z = Parameter(empty(in_features, out_features))
-        if self.has_bias:
-            self.bias = Parameter(empty(out_features))
+        # TODO: torch stores weights transposed supposedly due to efficiency
+        # https://discuss.pytorch.org/t/why-does-the-linear-module-seems-to-do-unnecessary-transposing/6277/7
+        # We may want to do the same
+        self.z, self.bias = self.manifold.construct_dl_parameters(
+            in_features=in_features, out_features=out_features, bias=self.has_bias
+        )
+
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        # TODO: this stuff depends on the manifold, so may need to move logic into there.
-        if self.id_init:
-            self.z = Parameter(1 / 2 * eye(self.in_features, self.out_features))
-        else:
-            normal_(
-                self.z,
-                mean=0,
-                std=(2 * self.in_features * self.out_features) ** -0.5,
-            )
-        if self.has_bias:
-            zeros_(self.bias)
+        self.manifold.reset_parameters(self.z, self.bias)
 
     def forward(self, x: ManifoldTensor) -> ManifoldTensor:
         check_if_manifolds_match(layer=self, input=x)

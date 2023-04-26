@@ -10,7 +10,6 @@ class ManifoldTensor(object):
         self, data, manifold: Manifold, man_dim: int = -1, requires_grad: bool = False
     ) -> None:
         if isinstance(data, Tensor):
-            data = data.requires_grad_(requires_grad)
             self.tensor = data
         else:
             self.tensor = tensor(data, requires_grad=requires_grad)
@@ -55,10 +54,10 @@ class ManifoldTensor(object):
 
     def __add__(self, other: Any):
         if isinstance(other, ManifoldTensor):
-            self.tensor = self.tensor + other.tensor
+            new_tensor = self.tensor + other.tensor
         else:
-            self.tensor = self.tensor + other
-        return self
+            new_tensor = self.tensor + other
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
     def __radd__(self, other: Any):
         if isinstance(other, ManifoldTensor):

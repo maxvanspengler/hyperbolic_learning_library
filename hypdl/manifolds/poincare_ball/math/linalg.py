@@ -3,14 +3,14 @@ from typing import Optional
 import torch
 
 
-def poincare_mlr(
+def poincare_hyperplane_dists(
     x: torch.Tensor,
     z: torch.Tensor,
     r: Optional[torch.Tensor],
     c: torch.Tensor,
 ) -> torch.Tensor:
     """
-    The Poincare multinomial logistic regression (MLR) operation.
+    The Poincare signed distance to hyperplanes operation.
 
     Parameters
     ----------
@@ -52,7 +52,7 @@ def poincare_mlr(
 def poincare_fully_connected(
     x: torch.Tensor,
     z: torch.Tensor,
-    bias: torch.Tensor,
+    bias: Optional[torch.Tensor],
     c: torch.Tensor,
 ) -> torch.Tensor:
     """
@@ -75,6 +75,6 @@ def poincare_fully_connected(
         Poincare FC transformed hyperbolic tensor, commonly denoted by y
     """
     c_sqrt = c.sqrt()
-    x = poincare_mlr(x=x, z=z, r=bias, c=c)
+    x = poincare_hyperplane_dists(x=x, z=z, r=bias, c=c)
     x = (c_sqrt * x).sinh() / c_sqrt
     return x / (1 + (1 + c * x.pow(2).sum(dim=-1, keepdim=True)).sqrt())
