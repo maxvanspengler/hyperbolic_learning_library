@@ -3,11 +3,11 @@ from typing import Any
 from torch import Tensor, tensor
 from torch.nn import Module, Parameter
 
-from hypdl.manifolds import Manifold
+from hypdl.manifolds.base import Manifold
 from hypdl.tensors.manifold_tensor import ManifoldTensor
 
 
-class ManifoldParameter(Module):
+class ManifoldParameter(Module, ManifoldTensor):
     # TODO: Create a mixin class containing the methods for this class and for ManifoldTensor
     # to avoid all the boilerplate stuff.
     def __init__(
@@ -39,6 +39,12 @@ class ManifoldParameter(Module):
                 return self._parameters[name]
             else:
                 raise AttributeError(f"ManifoldParameter has no registered parameter attribute")
+
+        if name == "manifold":
+            if name in self._modules:
+                return self._modules[name]
+            else:
+                raise AttributeError(f"ManifoldParameter has no registered manifold attribute")
 
         if hasattr(self.tensor, name):
             torch_attribute = getattr(self.tensor, name)
@@ -95,11 +101,23 @@ class ManifoldParameter(Module):
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
+        else:
+            for value in kwargs.values():
+                if isinstance(value, cls):
+                    manifold = value.manifold
+                    man_dim = value.man_dim
+                    break
+
         for arg in args:
             if isinstance(arg, cls):
                 manifold = arg.manifold
                 man_dim = arg.man_dim
                 break
+
         args = [arg.tensor if hasattr(arg, "tensor") else arg for arg in args]
+        kwargs = {
+            key: (value.tensor if hasattr(value, "tensor") else value)
+            for key, value in kwargs.items()
+        }
         ret = func(*args, **kwargs)
         return ManifoldTensor(ret, manifold=manifold, man_dim=man_dim)
