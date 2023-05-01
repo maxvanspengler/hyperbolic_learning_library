@@ -116,7 +116,7 @@ class Net(nn.Module):
 net = Net()
 
 ########################################################################
-# 3. Define a Loss function and optimizer
+# 4. Define a Loss function and optimizer
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's use a Classification Cross-Entropy loss and Adam optimizer. Adam is
 # preferred because hyperbolic linear layers can sometimes have training
@@ -130,7 +130,7 @@ optimizer = optim.Adam(net.parameters())
 
 
 ########################################################################
-# 4. Train the network
+# 5. Train the network
 # ^^^^^^^^^^^^^^^^^^^^
 #
 # This is when things start to get interesting.
@@ -177,6 +177,9 @@ net = Net()
 net.load_state_dict(torch.load(PATH))
 
 ########################################################################
+# 6. Test the network on the test data
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#
 # Let us look at how the network performs on the whole dataset.
 
 correct = 0
