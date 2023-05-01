@@ -21,3 +21,6 @@ line-length = 100
 
 [tool.isort]
 profile = "black"
+
+[tool.setuptools.packages.find]
+include = ["hypdl*"]
