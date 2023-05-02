@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from torch import Tensor, tensor
 
@@ -27,23 +27,16 @@ class ManifoldTensor(object):
                 )
 
     def __getattr__(self, name: str) -> Any:
+        # TODO: go through https://pytorch.org/docs/stable/tensors.html and check which methods
+        # are relevant.
         if hasattr(self.tensor, name):
             torch_attribute = getattr(self.tensor, name)
 
             if callable(torch_attribute):
-
-                def wrapped_torch_method(*args, **kwargs):
-                    return_val = torch_attribute(*args, **kwargs)
-                    if isinstance(return_val, Tensor):
-                        new_tensor = ManifoldTensor(
-                            data=return_val, manifold=self.manifold, man_dim=self.man_dim
-                        )
-                        return new_tensor
-                    else:
-                        return return_val
-
-                return wrapped_torch_method
-
+                raise AttributeError(
+                    f"Attempting to apply the torch.Tensor method {name} on a ManifoldTensor."
+                    f"Use ManifoldTensor.tensor.{name} instead."
+                )
             else:
                 return torch_attribute
 
@@ -52,74 +45,31 @@ class ManifoldTensor(object):
                 f"Neither {self.__class__.__name__}, nor torch.Tensor has attribute {name}"
             )
 
-    def __add__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor + other.tensor
-        else:
-            new_tensor = self.tensor + other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __radd__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor + other.tensor
-        else:
-            new_tensor = self.tensor + other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __sub__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor - other.tensor
-        else:
-            new_tensor = self.tensor - other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __rsub__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = other.tensor - self.tensor
-        else:
-            new_tensor = other - self.tensor
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __mul__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor * other.tensor
-        else:
-            new_tensor = self.tensor * other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __rmul__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor * other.tensor
-        else:
-            new_tensor = self.tensor * other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __truediv__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor / other.tensor
-        else:
-            new_tensor = self.tensor / other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def __rtruediv__(self, other: Any):
-        if isinstance(other, ManifoldTensor):
-            new_tensor = self.tensor / other.tensor
-        else:
-            new_tensor = self.tensor / other
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
     def project(self):
         return self.manifold.project(x=self, dim=self.man_dim)
 
+    def cuda(self):
+        new_tensor = self.tensor.cuda()
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
+
+    def cpu(self):
+        new_tensor = self.tensor.cpu()
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
+
+    def to(self, *args, **kwargs):
+        new_tensor = self.tensor.to(*args, **kwargs)
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
+
+    def size(self, dim: Optional[int] = None):
+        if dim is None:
+            return self.tensor.size()
+        else:
+            return self.tensor.size(dim)
+
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-        for arg in args:
-            if isinstance(arg, cls):
-                manifold = arg.manifold
-                man_dim = arg.man_dim
-                break
-        args = [arg.tensor if hasattr(arg, "tensor") else arg for arg in args]
-        ret = func(*args, **kwargs)
-        return ManifoldTensor(ret, manifold=manifold, man_dim=man_dim)
+        # TODO: check if there are torch functions that should be allowed
+        raise TypeError(
+            f"Attempting to apply the torch function {func} on a ManifoldTensor."
+            f"Use ManifoldTensor.tensor as argument to {func} instead."
+        )
