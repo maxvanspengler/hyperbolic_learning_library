@@ -11,13 +11,13 @@ class HConvolution2d(Module):
 
     Attributes:
         in_channels:
-            Number of channels in the input image
+            Number of channels in the input image.
         out_channels:
-            Number of channels produced by the convolution
+            Number of channels produced by the convolution.
         kernel_size:
-            Size of the convolving kernel
+            Size of the convolving kernel.
         manifold:
-            Hyperbolic manifold of the tensors
+            Hyperbolic manifold of the tensors.
         bias:
             If True, adds a learnable bias to the output. Default: True
         stride:
