@@ -7,8 +7,10 @@ from torch.nn.functional import unfold
 from torch.nn.init import normal_, zeros_
 
 from hypdl.manifolds.base import Manifold
+from hypdl.manifolds.euclidean import Euclidean
 from hypdl.tensors import ManifoldParameter, ManifoldTensor
 from hypdl.utils.math import beta_func
+from hypdl.utils.tensor_utils import check_dims_with_broadcasting
 
 from .math.diffgeom import (
     dist,
@@ -16,6 +18,7 @@ from .math.diffgeom import (
     expmap,
     expmap0,
     gyration,
+    inner,
     logmap,
     logmap0,
     mobius_add,
@@ -42,83 +45,109 @@ class PoincareBall(Manifold):
 
     @property
     def c(self) -> Tensor:
+        # TODO: should probably inverse softplus during init to account for this
+        # otherwise setting c = 1.0 doesn't actually lead to ball.c = 1.0
         return nn.functional.softplus(self.isp_c)
 
-    def mobius_add(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
-        return mobius_add(x=x, y=y, c=self.c, dim=dim)
+    def mobius_add(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(x, y)
+        new_tensor = mobius_add(x=x, y=y, c=self.c, dim=dim)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
-    def project(self, x: Tensor, dim: int = -1, eps: float = -1.0) -> Tensor:
-        return project(x=x, c=self.c, dim=dim, eps=eps)
+    def project(self, x: ManifoldTensor, eps: float = -1.0) -> ManifoldTensor:
+        new_tensor = project(x=x.tensor, c=self.c, dim=x.man_dim, eps=eps)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=x.man_dim)
 
-    def expmap0(self, v: Tensor, dim: int = -1) -> Tensor:
-        return expmap0(v=v, c=self.c, dim=dim)
+    def expmap0(self, v: ManifoldTensor) -> ManifoldTensor:
+        new_tensor = expmap0(v=v.tensor, c=self.c, dim=v.man_dim)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=v.man_dim)
 
-    def logmap0(self, y: Tensor, dim: int = -1) -> Tensor:
-        return logmap0(y=y, c=self.c, dim=dim)
+    def logmap0(self, y: ManifoldTensor) -> ManifoldTensor:
+        new_tensor = logmap0(y=y.tensor, c=self.c, dim=y.man_dim)
+        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=y.man_dim)
 
-    def expmap(self, x: Tensor, v: Tensor, dim: int = -1) -> Tensor:
-        return expmap(x=x, v=v, c=self.c, dim=dim)
+    def expmap(self, x: ManifoldTensor, v: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(x, v)
+        new_tensor = expmap(x=x.tensor, v=v.tensor, c=self.c, dim=dim)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
-    def logmap(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
-        return logmap(x=x, y=y, c=self.c, dim=dim)
+    def logmap(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(x, y)
+        new_tensor = logmap(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
+        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
 
-    def gyration(self, u: Tensor, v: Tensor, w: Tensor, dim: int = -1) -> Tensor:
-        return gyration(u=u, v=v, w=w, c=self.c, dim=dim)
+    def gyration(self, u: ManifoldTensor, v: ManifoldTensor, w: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(u, v, w)
+        new_tensor = gyration(u=u.tensor, v=v.tensor, w=w.tensor, c=self.c, dim=dim)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
-    def transp(self, x: Tensor, y: Tensor, v: Tensor, dim: int = -1) -> Tensor:
-        return transp(x=x, y=y, v=v, c=self.c, dim=dim)
+    def transp(self, x: ManifoldTensor, y: ManifoldTensor, v: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(x, y, v)
+        new_tensor = transp(x=x.tensor, y=y.tensor, v=v.tensor, c=self.c, dim=dim)
+        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
 
-    def dist(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
-        return dist(x=x, y=y, c=self.c, dim=dim)
+    def dist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
+        dim = check_dims_with_broadcasting(x, y)
+        return dist(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
 
-    def euc_to_tangent(self, x: Tensor, u: Tensor, dim: int = -1) -> Tensor:
-        return euc_to_tangent(x=x, u=u, c=self.c, dim=dim)
+    def inner(
+        self, x: ManifoldTensor, u: ManifoldTensor, v: ManifoldTensor, keepdim: bool = False
+    ) -> Tensor:
+        dim = check_dims_with_broadcasting(x, u, v)
+        return inner(x=x.tensor, u=u.tensor, v=v.tensor, c=self.c, dim=dim, keepdim=keepdim)
 
-    def hyperplane_dists(self, x: Tensor, z: Tensor, r: Optional[Tensor]) -> Tensor:
-        return poincare_hyperplane_dists(x=x, z=z, r=r, c=self.c)
+    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> ManifoldTensor:
+        dim = check_dims_with_broadcasting(x, u)
+        new_tensor = euc_to_tangent(x=x.tensor, u=u.tensor, c=self.c, dim=x.man_dim)
+        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
 
-    def fully_connected(self, x: Tensor, z: Tensor, bias: Optional[Tensor]) -> Tensor:
-        y = poincare_fully_connected(x=x, z=z, bias=bias, c=self.c)
-        return self.project(y, dim=-1)
+    def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
+        # TODO: check dimensions
+        return poincare_hyperplane_dists(x=x.tensor, z=z.tensor, r=r, c=self.c)
 
-    def frechet_mean(self, x: Tensor, w: Optional[Tensor] = None) -> Tensor:
-        return frechet_mean(x=x, c=self.c, w=w)
+    def fully_connected(
+        self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
+    ) -> ManifoldTensor:
+        # TODO: check dimensions
+        new_tensor = poincare_fully_connected(x=x.tensor, z=z.tensor, bias=bias, c=self.c)
+        new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
+        return self.project(new_tensor)
+
+    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
+        # TODO: make frechet mean have dim options and add dim checks
+        new_tensor = frechet_mean(x=x.tensor, c=self.c, w=w)
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
 
     def frechet_variance(
-        self, x: Tensor, mu: Tensor, dim: int = -1, w: Optional[Tensor] = None
+        self, x: ManifoldTensor, mu: ManifoldTensor, dim: int = -1, w: Optional[Tensor] = None
     ) -> Tensor:
-        return frechet_variance(x=x, mu=mu, c=self.c, dim=dim, w=w)
+        # TODO: make frechet variance have proper dim options and add dim checks
+        return frechet_variance(x=x.tensor, mu=mu.tensor, c=self.c, dim=dim, w=w)
 
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True
-    ) -> tuple[ManifoldParameter, Optional[ManifoldParameter]]:
+    ) -> tuple[ManifoldParameter, Optional[nn.Parameter]]:
         weight = ManifoldParameter(
             data=empty(in_features, out_features),
-            manifold=self,
+            manifold=Euclidean(),
             man_dim=-1,
         )
 
         if bias:
-            b = ManifoldParameter(
-                data=empty(out_features),
-                manifold=self,
-                man_dim=-1,
-            )
+            b = nn.Parameter(data=empty(out_features))
         else:
             b = None
 
         return weight, b
 
-    def reset_parameters(
-        self, weight: ManifoldParameter, bias: Optional[ManifoldParameter]
-    ) -> None:
+    def reset_parameters(self, weight: ManifoldParameter, bias: Optional[nn.Parameter]) -> None:
         in_features, out_features = weight.size()
         if in_features <= out_features:
             with no_grad():
-                weight.copy_(1 / 2 * eye(in_features, out_features))
+                weight.tensor.copy_(1 / 2 * eye(in_features, out_features))
         else:
             normal_(
-                weight,
+                weight.tensor,
                 mean=0,
                 std=(2 * in_features * out_features) ** -0.5,
             )
@@ -145,12 +174,15 @@ class PoincareBall(Manifold):
         beta_ni = beta_func(in_channels / 2, 1 / 2)
         beta_n = beta_func(in_channels * kernel_vol / 2, 1 / 2)
 
-        input = self.logmap0(input, dim=1)
-        input = input * beta_n / beta_ni
-        return unfold(
-            input=input,
+        input = self.logmap0(input)
+        input.tensor = input.tensor * beta_n / beta_ni
+        new_tensor = unfold(
+            input=input.tensor,
             kernel_size=kernel_size,
             dilation=dilation,
             padding=padding,
             stride=stride,
         )
+        new_tensor = new_tensor.transpose(1, 2)
+        new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=2)
+        return self.expmap0(new_tensor)
