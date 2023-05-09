@@ -15,7 +15,7 @@ class TangentSequential(Module):
         check_if_manifolds_match(layer=self, input=input)
         man_dim = input.man_dim
 
-        input = self.manifold.logmap0(input, dim=man_dim)
+        input = self.manifold.logmap0(input)
         for module in self.seq:
-            input = module(input)
-        return self.manifold.expmap0(input, dim=man_dim)
+            input.tensor = module(input.tensor)
+        return self.manifold.expmap0(input)

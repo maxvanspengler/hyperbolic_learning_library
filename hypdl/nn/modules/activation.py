@@ -13,11 +13,8 @@ class HReLU(Module):
 
     def forward(self, input: ManifoldTensor) -> ManifoldTensor:
         check_if_manifolds_match(layer=self, input=input)
-        man_dim = input.man_dim
-
         return op_in_tangent_space(
             op=relu,
             manifold=self.manifold,
             input=input,
-            dim=man_dim,
         )

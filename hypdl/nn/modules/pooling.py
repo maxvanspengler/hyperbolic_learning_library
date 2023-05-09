@@ -39,7 +39,6 @@ class HMaxPool2d(_HMaxPoolNd):
 
     def forward(self, input: ManifoldTensor) -> ManifoldTensor:
         check_if_manifolds_match(layer=self, input=input)
-        man_dim = input.man_dim
 
         # TODO: check if defining this partial func each forward pass is slow.
         # If it is, put this stuff inside the init or add kwargs to op_in_tangent_space.
@@ -52,7 +51,4 @@ class HMaxPool2d(_HMaxPoolNd):
             ceil_mode=self.ceil_mode,
             return_indices=self.return_indices,
         )
-
-        return op_in_tangent_space(
-            op=max_pool2d_partial, manifold=self.manifold, input=input, dim=man_dim
-        )
+        return op_in_tangent_space(op=max_pool2d_partial, manifold=self.manifold, input=input)

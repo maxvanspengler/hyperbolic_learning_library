@@ -68,8 +68,11 @@ class HConvolution2d(Module):
             padding=self.padding,
             stride=self.stride,
         )
-        x = x.transpose(1, 2)
-        x = x.manifold.expmap0(x, dim=1)
         x = self.manifold.fully_connected(x=x, z=self.weights, bias=self.bias)
-        x = x.transpose(1, 2).reshape(batch_size, self.out_channels, out_height, out_width)
+        x = x.transpose(1, 2)
+        x = ManifoldTensor(
+            data=x.tensor.reshape(batch_size, self.out_channels, out_height, out_width),
+            manifold=x.manifold,
+            man_dim=1,
+        )
         return x
