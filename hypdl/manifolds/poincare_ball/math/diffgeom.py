@@ -99,6 +99,19 @@ def dist(
     )
 
 
+def inner(
+    x: torch.Tensor,
+    u: torch.Tensor,
+    v: torch.Tensor,
+    c: torch.Tensor,
+    dim: int = -1,
+    keepdim: bool = False,
+) -> torch.Tensor:
+    lambda_x = 2 / (1 - c * x.pow(2).sum(dim=dim, keepdim=True)).clamp_min(1e-15)
+    dot_prod = (u * v).sum(dim=dim, keepdim=keepdim)
+    return lambda_x.square() * dot_prod
+
+
 def euc_to_tangent(
     x: torch.Tensor,
     u: torch.Tensor,
