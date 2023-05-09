@@ -1,19 +1,27 @@
 from typing import Any
 
+import torch
 from torch import Tensor, tensor
-from torch.nn import Module, Parameter
+from torch.nn import Parameter
 
 from hypdl.manifolds.base import Manifold
 from hypdl.tensors.manifold_tensor import ManifoldTensor
 
 
-class ManifoldParameter(Module, ManifoldTensor):
+class ManifoldParameter(ManifoldTensor, Parameter):
+    _allowed_methods = [
+        torch._has_compatible_shallow_copy_type,  # Is required for torch.nn.Parameter
+    ]
+
+    def __new__(cls, data, manifold, man_dim, requires_grad=True):
+        return super(ManifoldTensor, cls).__new__(cls)
+
     # TODO: Create a mixin class containing the methods for this class and for ManifoldTensor
     # to avoid all the boilerplate stuff.
     def __init__(
         self, data, manifold: Manifold, man_dim: int = -1, requires_grad: bool = True
     ) -> None:
-        super(ManifoldParameter, self).__init__()
+        super(ManifoldParameter, self).__init__(data=data, manifold=manifold)
         if isinstance(data, Parameter):
             self.tensor = data
         elif isinstance(data, Tensor):
@@ -34,90 +42,36 @@ class ManifoldParameter(Module, ManifoldTensor):
                 )
 
     def __getattr__(self, name: str) -> Any:
-        if name == "tensor":
-            if name in self._parameters:
-                return self._parameters[name]
-            else:
-                raise AttributeError(f"ManifoldParameter has no registered parameter attribute")
-
-        if name == "manifold":
-            if name in self._modules:
-                return self._modules[name]
-            else:
-                raise AttributeError(f"ManifoldParameter has no registered manifold attribute")
-
+        # TODO: go through https://pytorch.org/docs/stable/tensors.html and check which methods
+        # are relevant.
         if hasattr(self.tensor, name):
             torch_attribute = getattr(self.tensor, name)
 
             if callable(torch_attribute):
-
-                def wrapped_torch_method(*args, **kwargs):
-                    return_val = torch_attribute(*args, **kwargs)
-                    if isinstance(return_val, Tensor):
-                        new_tensor = ManifoldTensor(
-                            data=return_val, manifold=self.manifold, man_dim=self.man_dim
-                        )
-                        return new_tensor
-                    else:
-                        return return_val
-
-                return wrapped_torch_method
-
+                raise AttributeError(
+                    f"Attempting to apply the torch.nn.Parameter method {name} on a ManifoldParameter."
+                    f"Use ManifoldTensor.tensor.{name} instead."
+                )
             else:
                 return torch_attribute
 
-        raise AttributeError(
-            f"Neither {self.__class__.__name__}, nor torch.Tensor has attribute {name}"
-        )
-
-    def __add__(self, other: Any):
-        return ManifoldTensor.__add__(self=self, other=other)
-
-    def __radd__(self, other: Any):
-        return ManifoldTensor.__radd__(self=self, other=other)
-
-    def __sub__(self, other: Any):
-        return ManifoldTensor.__sub__(self=self, other=other)
-
-    def __rsub__(self, other: Any):
-        return ManifoldTensor.__rsub__(self=self, other=other)
-
-    def __mul__(self, other: Any):
-        return ManifoldTensor.__mul__(self=self, other=other)
-
-    def __rmul__(self, other: Any):
-        return ManifoldTensor.__rmul__(self=self, other=other)
-
-    def __truediv__(self, other: Any):
-        return ManifoldTensor.__truediv__(self=self, other=other)
-
-    def __rtruediv__(self, other: Any):
-        return ManifoldTensor.__rtruediv__(self=self, other=other)
-
-    def project(self):
-        return self.manifold.project(x=self, dim=self.man_dim)
+        else:
+            raise AttributeError(
+                f"Neither {self.__class__.__name__}, nor torch.Tensor has attribute {name}"
+            )
 
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-        else:
-            for value in kwargs.values():
-                if isinstance(value, cls):
-                    manifold = value.manifold
-                    man_dim = value.man_dim
-                    break
-
-        for arg in args:
-            if isinstance(arg, cls):
-                manifold = arg.manifold
-                man_dim = arg.man_dim
-                break
-
-        args = [arg.tensor if hasattr(arg, "tensor") else arg for arg in args]
-        kwargs = {
-            key: (value.tensor if hasattr(value, "tensor") else value)
-            for key, value in kwargs.items()
-        }
-        ret = func(*args, **kwargs)
-        return ManifoldTensor(ret, manifold=manifold, man_dim=man_dim)
+        if func.__class__.__name__ == "method-wrapper" or func in cls._allowed_methods:
+            args = [a.tensor if isinstance(a, ManifoldTensor) else a for a in args]
+            if kwargs is None:
+                kwargs = {}
+            kwargs = {k: (v.tensor if isinstance(v, ManifoldTensor) else v) for k, v in kwargs}
+            return func(*args, **kwargs)
+        # if func.__name__ == "__get__":
+        #     return func(args[0].tensor)
+        # TODO: check if there are torch functions that should be allowed
+        raise TypeError(
+            f"Attempting to apply the torch function {func} on a ManifoldParameter."
+            f"Use ManifoldParameter.tensor as argument to {func} instead."
+        )
