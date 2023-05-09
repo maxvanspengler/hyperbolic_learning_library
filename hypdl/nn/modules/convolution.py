@@ -23,7 +23,11 @@ class HConvolution2d(Module):
         super(HConvolution2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.kernel_size = kernel_size if len(kernel_size) == 2 else (kernel_size, kernel_size)
+        self.kernel_size = (
+            kernel_size
+            if isinstance(kernel_size, tuple) and len(kernel_size) == 2
+            else (kernel_size, kernel_size)
+        )
         self.kernel_vol = self.kernel_size[0] * self.kernel_size[1]
         self.manifold = manifold
         self.stride = stride
