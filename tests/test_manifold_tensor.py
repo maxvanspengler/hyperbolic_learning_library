@@ -27,6 +27,7 @@ def test_attributes(manifold_tensor: ManifoldTensor):
     assert manifold_tensor.is_cpu
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires cuda")
 def test_device_methods(manifold_tensor: ManifoldTensor):
     # Check if we can move the manifold tensor to the gpu while keeping it intact
     manifold_tensor = manifold_tensor.cuda()
