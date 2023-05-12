@@ -1,81 +1,92 @@
 from math import sqrt
 from typing import Optional
 
-from torch import Tensor, empty, matmul, var
+from torch import Tensor, broadcast_shapes, empty, matmul, var
+from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
 from torch.nn.functional import unfold
 from torch.nn.init import _calculate_fan_in_and_fan_out, kaiming_uniform_, uniform_
 
 from hypdl.manifolds.base import Manifold
-from hypdl.tensors import ManifoldParameter, ManifoldTensor
-from hypdl.utils.tensor_utils import check_dims_with_broadcasting
+from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hypdl.utils.tensor_utils import (
+    check_dims_with_broadcasting,
+    check_tangent_tensor_positions,
+)
 
 
 class Euclidean(Manifold):
     def __init__(self):
         super(Euclidean, self).__init__()
 
-    def project(self, x: ManifoldTensor, dim: int = -1, eps: float = -1.0) -> ManifoldTensor:
+    def project(self, x: ManifoldTensor, eps: float = -1.0) -> ManifoldTensor:
         return x
 
-    def expmap0(self, v: ManifoldTensor, dim: int = -1) -> ManifoldTensor:
-        return v
+    def expmap(self, v: TangentTensor) -> ManifoldTensor:
+        if v.manifold_points is None:
+            new_tensor = v.tensor
+        else:
+            new_tensor = v.manifold_points.tensor + v.tensor
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=v.broadcasted_man_dim)
 
-    def logmap0(self, y: ManifoldTensor, dim: int = -1) -> ManifoldTensor:
-        return y
+    def logmap(self, x: Optional[ManifoldTensor], y: ManifoldTensor) -> TangentTensor:
+        if x is None:
+            dim = y.man_dim
+            new_tensor = y.tensor
+        else:
+            dim = check_dims_with_broadcasting(x, y)
+            new_tensor = y.tensor - x.tensor
+        return TangentTensor(data=new_tensor, manifold_points=x, manifold=self, man_dim=dim)
 
-    def expmap(self, x: ManifoldTensor, v: ManifoldTensor, dim: int = -1) -> ManifoldTensor:
-        new_tensor = x.tensor + v.tensor
-        requires_grad = x.requires_grad or v.requires_grad
-        return ManifoldTensor(
-            data=new_tensor, manifold=x.manifold, man_dim=x.man_dim, requires_grad=requires_grad
-        )
+    def transp(self, v: TangentTensor, y: ManifoldTensor) -> TangentTensor:
+        dim = check_dims_with_broadcasting(v, y)
+        output_shape = broadcast_shapes(v.size(), y.size())
+        new_tensor = v.tensor.broadcast_to(output_shape)
+        return TangentTensor(data=new_tensor, manifold_points=y, manifold=self, man_dim=dim)
 
-    def logmap(self, x: ManifoldTensor, y: ManifoldTensor, dim: int = -1) -> ManifoldTensor:
-        new_tensor = y.tensor - x.tensor
-        requires_grad = x.requires_grad or y.requires_grad
-        return ManifoldTensor(
-            data=new_tensor, manifold=x.manifold, man_dim=x.man_dim, requires_grad=requires_grad
-        )
-
-    def transp(
-        self, x: ManifoldTensor, y: ManifoldTensor, v: ManifoldTensor, dim: int = -1
-    ) -> ManifoldTensor:
-        return v
-
-    def dist(self, x: ManifoldTensor, y: ManifoldTensor, dim: int = -1) -> Tensor:
+    def dist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
+        dim = check_dims_with_broadcasting(x, y)
         return (y.tensor - x.tensor).norm(dim=dim)
 
     def inner(
-        self, x: ManifoldTensor, u: ManifoldTensor, v: ManifoldTensor, keepdim: bool = False
+        self, u: TangentTensor, v: TangentTensor, keepdim: bool = False, safe_mode: bool = True
     ) -> Tensor:
-        dim = check_dims_with_broadcasting(x, u, v)
+        dim = check_dims_with_broadcasting(u, v)
+        if safe_mode:
+            check_tangent_tensor_positions(u, v)
+
         return (u.tensor * v.tensor).sum(dim=dim, keepdim=keepdim)
 
-    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor, dim: int = -1) -> ManifoldTensor:
-        return u
+    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> TangentTensor:
+        dim = check_dims_with_broadcasting(x, u)
+        return TangentTensor(
+            data=u.tensor,
+            manifold_points=x,
+            manifold=self,
+            man_dim=dim,
+        )
 
-    def hyperplane_dists(
-        self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[ManifoldTensor]
-    ) -> Tensor:
+    def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
         if r is None:
             return matmul(x.tensor, z.tensor)
         else:
-            return matmul(x.tensor, z.tensor) + r.tensor
+            return matmul(x.tensor, z.tensor) + r
 
     def fully_connected(
-        self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[ManifoldTensor]
-    ) -> Tensor:
+        self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
+    ) -> ManifoldTensor:
         if bias is None:
-            return matmul(x.tensor, z.tensor)
+            new_tensor = matmul(x.tensor, z.tensor)
         else:
-            return matmul(x.tensor, z.tensor) + bias.tensor
+            new_tensor = matmul(x.tensor, z.tensor) + bias
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
 
-    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> Tensor:
+    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
         if w is None:
-            return x.tensor.mean(dim=-1)
+            mean_tensor = x.tensor.mean(dim=-1)
         else:
-            return matmul(w, x.tensor) / w.sum()
+            mean_tensor = matmul(w, x.tensor) / w.sum()
+        return ManifoldTensor(data=mean_tensor, manifold=self, man_dim=-1)
 
     def frechet_variance(
         self, x: ManifoldTensor, mu: ManifoldTensor, dim: int = -1, w: Optional[Tensor] = None
@@ -89,7 +100,7 @@ class Euclidean(Manifold):
 
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True
-    ) -> tuple[ManifoldParameter, Optional[ManifoldParameter]]:
+    ) -> tuple[ManifoldParameter, Optional[Parameter]]:
         weight = ManifoldParameter(
             data=empty(in_features, out_features),
             manifold=self,
@@ -97,23 +108,19 @@ class Euclidean(Manifold):
         )
 
         if bias:
-            b = ManifoldParameter(
-                data=empty(out_features),
-                manifold=self,
-                man_dim=1,
-            )
+            b = Parameter(data=empty(out_features))
         else:
             b = None
 
         return weight, b
 
-    def reset_parameters(self, weight: ManifoldParameter, bias: ManifoldParameter) -> None:
+    def reset_parameters(self, weight: ManifoldParameter, bias: Parameter) -> None:
         # TODO: check if this actually saves the reset params
         kaiming_uniform_(weight.tensor, a=sqrt(5))
         if bias is not None:
             fan_in, _ = _calculate_fan_in_and_fan_out(weight.tensor)
             bound = 1 / sqrt(fan_in) if fan_in > 0 else 0
-            uniform_(bias.tensor, -bound, bound)
+            uniform_(bias, -bound, bound)
 
     def unfold(
         self,
@@ -122,12 +129,13 @@ class Euclidean(Manifold):
         dilation: _size_2_t = 1,
         padding: _size_2_t = 0,
         stride: _size_2_t = 1,
-    ):
+    ) -> ManifoldTensor:
         new_tensor = unfold(
-            input=input,
+            input=input.tensor,
             kernel_size=kernel_size,
             dilation=dilation,
             padding=padding,
             stride=stride,
         )
+        new_tensor = new_tensor.transpose(1, 2)
         return ManifoldTensor(data=new_tensor, manifold=input.manifold, man_dim=-1)

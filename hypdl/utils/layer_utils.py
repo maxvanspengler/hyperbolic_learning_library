@@ -9,7 +9,7 @@ from hypdl.tensors import ManifoldTensor
 def check_if_manifolds_match(layer: Module, input: ManifoldTensor) -> None:
     if layer.manifold != input.manifold:
         raise ValueError(
-            f"Manifold of {layer.__class__.__name__} layer is {layer.manifold}"
+            f"Manifold of {layer.__class__.__name__} layer is {layer.manifold} "
             f"but input has manifold {input.manifold}"
         )
 
@@ -22,12 +22,12 @@ def check_if_man_dims_match(layer: Module, man_dim: int, input: ManifoldTensor) 
 
     if input.man_dim != new_man_dim:
         raise ValueError(
-            f"Layer of type {layer.__class__.__name__} expects the manifold dimension to be {man_dim},"
+            f"Layer of type {layer.__class__.__name__} expects the manifold dimension to be {man_dim}, "
             f"but input has manifold dimension {input.man_dim}"
         )
 
 
 def op_in_tangent_space(op: Callable, manifold: Manifold, input: ManifoldTensor) -> ManifoldTensor:
-    input = manifold.logmap0(input)
+    input = manifold.logmap(x=None, y=input)
     input.tensor = op(input.tensor)
-    return manifold.expmap0(input)
+    return manifold.expmap(input)

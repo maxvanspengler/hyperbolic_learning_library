@@ -63,6 +63,7 @@ class RiemannianSGD(Optimizer):
                                     manifold=Euclidean(),
                                     man_dim=param.man_dim,
                                 )
+
                         manifold: Manifold = param.manifold
 
                         grad.tensor.add_(
@@ -70,7 +71,9 @@ class RiemannianSGD(Optimizer):
                         )  # TODO: check if this makes sense
                         grad = manifold.euc_to_tangent(x=param, u=grad)
                         if momentum > 0:
-                            momentum_buffer = state["momentum_buffer"]
+                            momentum_buffer = manifold.euc_to_tangent(
+                                x=param, u=state["momentum_buffer"]
+                            )
                             momentum_buffer.tensor.mul_(momentum).add_(
                                 grad.tensor, alpha=1 - dampening
                             )
@@ -81,13 +84,11 @@ class RiemannianSGD(Optimizer):
 
                             grad.tensor = -lr * grad.tensor
 
-                            new_param = manifold.expmap(x=param, v=grad)
+                            new_param = manifold.expmap(grad)
 
-                            new_momentum_buffer = manifold.transp(
-                                x=param, y=new_param, v=momentum_buffer
-                            )
+                            momentum_buffer = manifold.transp(v=momentum_buffer, y=new_param)
 
-                            momentum_buffer.tensor.copy_(new_momentum_buffer.tensor)
+                            # momentum_buffer.tensor.copy_(new_momentum_buffer.tensor)
                             param.tensor.copy_(new_param.tensor)
                         else:
                             new_param = manifold.expmap(x=param, v=-lr * grad)

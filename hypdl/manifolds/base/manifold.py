@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from torch import Tensor
 from torch.nn import Module, Parameter
+
+# TODO: find a less hacky solution for this
+if TYPE_CHECKING:
+    from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class Manifold(Module, ABC):
@@ -11,62 +17,56 @@ class Manifold(Module, ABC):
         super(Manifold, self).__init__()
 
     @abstractmethod
-    def project(self, x: Tensor, dim: int = -1, eps: float = -1.0) -> Tensor:
+    def project(self, x: ManifoldTensor, eps: float = -1.0) -> ManifoldTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def expmap0(self, v: Tensor, dim: int = -1) -> Tensor:
+    def expmap(self, v: TangentTensor) -> ManifoldTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def logmap0(self, y: Tensor, dim: int = -1) -> Tensor:
+    def logmap(self, x: Optional[ManifoldTensor], y: ManifoldTensor) -> TangentTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def expmap(self, x: Tensor, v: Tensor, dim: int = -1) -> Tensor:
+    def transp(self, v: TangentTensor, y: ManifoldTensor) -> TangentTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def logmap(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
+    def dist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
         raise NotImplementedError
 
     @abstractmethod
-    def transp(self, x: Tensor, y: Tensor, v: Tensor, dim: int = -1) -> Tensor:
+    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> TangentTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def dist(self, x: Tensor, y: Tensor, dim: int = -1) -> Tensor:
+    def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
         raise NotImplementedError
 
     @abstractmethod
-    def euc_to_tangent(self, x: Tensor, u: Tensor, dim: int = -1) -> Tensor:
+    def fully_connected(
+        self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
+    ) -> ManifoldTensor:
         raise NotImplementedError
 
     @abstractmethod
-    def hyperplane_dists(self, x: Tensor, z: Tensor, r: Tensor) -> Tensor:
-        raise NotImplementedError
-
-    @abstractmethod
-    def fully_connected(self, x: Tensor, z: Tensor, bias: Tensor) -> Tensor:
-        raise NotImplementedError
-
-    @abstractmethod
-    def frechet_mean(self, x: Tensor, w: Optional[Tensor] = None) -> Tensor:
-        # TODO: this should take a dimension or at least use the man_dim from the input tensor
+    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
         raise NotImplementedError
 
     @abstractmethod
     def frechet_variance(
-        self, x: Tensor, mu: Tensor, dim: int = -1, w: Optional[Tensor] = None
+        self, x: ManifoldTensor, mu: ManifoldTensor, w: Optional[Tensor] = None
     ) -> Tensor:
         raise NotImplementedError
 
     @abstractmethod
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True
-    ) -> Union[Parameter, tuple[Parameter, Parameter]]:
+    ) -> Union[ManifoldParameter, tuple[ManifoldParameter, Parameter]]:
+        # TODO: make an annotation object for the return type of this method
         raise NotImplementedError
 
     @abstractmethod
-    def reset_parameters(self, weight: Parameter, bias: Parameter) -> None:
+    def reset_parameters(self, weight: ManifoldParameter, bias: Parameter) -> None:
         raise NotImplementedError

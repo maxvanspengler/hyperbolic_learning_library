@@ -7,7 +7,27 @@ from hypdl.utils.layer_utils import check_if_man_dims_match, check_if_manifolds_
 
 
 class HConvolution2d(Module):
-    """Hyperbolic 2 dimensional convolution layer"""
+    """Applies a 2D convolution over a hyperbolic input signal.
+
+    Attributes:
+        in_channels:
+            Number of channels in the input image.
+        out_channels:
+            Number of channels produced by the convolution.
+        kernel_size:
+            Size of the convolving kernel.
+        manifold:
+            Hyperbolic manifold of the tensors.
+        bias:
+            If True, adds a learnable bias to the output. Default: True
+        stride:
+            Stride of the convolution. Default: 1
+        padding:
+            Padding added to all four sides of the input. Default: 0
+        id_init:
+            Use identity initialization (True) if appropriate or use HNN++ initialization (False).
+
+    """
 
     def __init__(
         self,
@@ -44,20 +64,22 @@ class HConvolution2d(Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
+        """Resets parameter weights based on the manifold."""
         self.manifold.reset_parameters(weight=self.weights, bias=self.bias)
 
     def forward(self, x: ManifoldTensor) -> ManifoldTensor:
-        """
-        Forward pass of the 2 dimensional convolution layer
+        """Does a forward pass of the 2D convolutional layer.
 
-        Parameters
-        ----------
-        x : tensor (height, width, batchsize, input channels)
-            contains the layer inputs
+        Args:
+            x:
+                Manifold tensor of shape (B, C_in, H, W) with manifold dimension 1.
 
-        Returns
-        -------
-        tensor (height, width, batchsize, output channels)
+        Returns:
+            Manifold tensor of shape (B, C_in, H_out, W_out) with manifold dimension 1.
+
+        Raises:
+            ValueError: If the manifolds or manifold dimensions don't match.
+
         """
         check_if_manifolds_match(layer=self, input=x)
         check_if_man_dims_match(layer=self, man_dim=1, input=x)
