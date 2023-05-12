@@ -5,7 +5,7 @@ from torch import Tensor, tensor
 from hypdl.manifolds import Manifold
 
 
-class ManifoldTensor(object):
+class ManifoldTensor:
     def __init__(
         self, data, manifold: Manifold, man_dim: int = -1, requires_grad: bool = False
     ) -> None:
@@ -61,7 +61,7 @@ class ManifoldTensor(object):
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
     def project(self):
-        return self.manifold.project(x=self, dim=self.man_dim)
+        return self.manifold.project(x=self)
 
     def cuda(self, device=None):
         new_tensor = self.tensor.cuda(device)

@@ -1,16 +1,19 @@
 from typing import Optional
 
-import torch.nn as nn
 from torch import Tensor, as_tensor, empty, eye, float32, no_grad
+from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
-from torch.nn.functional import unfold
+from torch.nn.functional import softplus, unfold
 from torch.nn.init import normal_, zeros_
 
 from hypdl.manifolds.base import Manifold
 from hypdl.manifolds.euclidean import Euclidean
-from hypdl.tensors import ManifoldParameter, ManifoldTensor
+from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 from hypdl.utils.math import beta_func
-from hypdl.utils.tensor_utils import check_dims_with_broadcasting
+from hypdl.utils.tensor_utils import (
+    check_dims_with_broadcasting,
+    check_tangent_tensor_positions,
+)
 
 from .math.diffgeom import (
     dist,
@@ -40,14 +43,14 @@ class PoincareBall(Manifold):
     def __init__(self, c=1.0, learnable=False):
         super(PoincareBall, self).__init__()
         c = as_tensor(c, dtype=float32)
-        self.isp_c = nn.Parameter(c, requires_grad=learnable)
+        self.isp_c = Parameter(c, requires_grad=learnable)
         self.learnable = learnable
 
     @property
     def c(self) -> Tensor:
         # TODO: should probably inverse softplus during init to account for this
         # otherwise setting c = 1.0 doesn't actually lead to ball.c = 1.0
-        return nn.functional.softplus(self.isp_c)
+        return softplus(self.isp_c)
 
     def mobius_add(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
         dim = check_dims_with_broadcasting(x, y)
@@ -58,48 +61,62 @@ class PoincareBall(Manifold):
         new_tensor = project(x=x.tensor, c=self.c, dim=x.man_dim, eps=eps)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=x.man_dim)
 
-    def expmap0(self, v: ManifoldTensor) -> ManifoldTensor:
-        new_tensor = expmap0(v=v.tensor, c=self.c, dim=v.man_dim)
-        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=v.man_dim)
-
-    def logmap0(self, y: ManifoldTensor) -> ManifoldTensor:
-        new_tensor = logmap0(y=y.tensor, c=self.c, dim=y.man_dim)
-        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=y.man_dim)
-
-    def expmap(self, x: ManifoldTensor, v: ManifoldTensor) -> ManifoldTensor:
-        dim = check_dims_with_broadcasting(x, v)
-        new_tensor = expmap(x=x.tensor, v=v.tensor, c=self.c, dim=dim)
+    def expmap(self, v: TangentTensor) -> ManifoldTensor:
+        dim = v.broadcasted_man_dim
+        if v.manifold_points is None:
+            new_tensor = expmap0(v=v.tensor, c=self.c, dim=dim)
+        else:
+            new_tensor = expmap(x=v.manifold_points.tensor, v=v.tensor, c=self.c, dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
-    def logmap(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
-        dim = check_dims_with_broadcasting(x, y)
-        new_tensor = logmap(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
-        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
+    def logmap(self, x: Optional[ManifoldTensor], y: ManifoldTensor):
+        if x is None:
+            dim = y.man_dim
+            new_tensor = logmap0(y=y.tensor, c=self.c, dim=y.man_dim)
+        else:
+            dim = check_dims_with_broadcasting(x, y)
+            new_tensor = logmap(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
+        return TangentTensor(data=new_tensor, manifold_points=x, manifold=self, man_dim=dim)
 
     def gyration(self, u: ManifoldTensor, v: ManifoldTensor, w: ManifoldTensor) -> ManifoldTensor:
         dim = check_dims_with_broadcasting(u, v, w)
         new_tensor = gyration(u=u.tensor, v=v.tensor, w=w.tensor, c=self.c, dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
-    def transp(self, x: ManifoldTensor, y: ManifoldTensor, v: ManifoldTensor) -> ManifoldTensor:
-        dim = check_dims_with_broadcasting(x, y, v)
-        new_tensor = transp(x=x.tensor, y=y.tensor, v=v.tensor, c=self.c, dim=dim)
-        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
+    def transp(self, v: TangentTensor, y: ManifoldTensor) -> TangentTensor:
+        dim = check_dims_with_broadcasting(v, y)
+        tangent_vectors = transp(x=v.manifold_points, y=y.tensor, v=v.tensor)
+        return TangentTensor(
+            data=tangent_vectors,
+            manifold_points=y,
+            manifold=self,
+            man_dim=dim,
+        )
 
     def dist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
         dim = check_dims_with_broadcasting(x, y)
         return dist(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
 
     def inner(
-        self, x: ManifoldTensor, u: ManifoldTensor, v: ManifoldTensor, keepdim: bool = False
+        self, u: TangentTensor, v: TangentTensor, keepdim: bool = False, safe_mode: bool = True
     ) -> Tensor:
-        dim = check_dims_with_broadcasting(x, u, v)
-        return inner(x=x.tensor, u=u.tensor, v=v.tensor, c=self.c, dim=dim, keepdim=keepdim)
+        dim = check_dims_with_broadcasting(u, v)
+        if safe_mode:
+            check_tangent_tensor_positions(u, v)
 
-    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> ManifoldTensor:
+        return inner(
+            x=u.manifold_points.tensor, u=u.tensor, v=v.tensor, c=self.c, dim=dim, keepdim=keepdim
+        )
+
+    def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> TangentTensor:
         dim = check_dims_with_broadcasting(x, u)
-        new_tensor = euc_to_tangent(x=x.tensor, u=u.tensor, c=self.c, dim=x.man_dim)
-        return ManifoldTensor(data=new_tensor, manifold=Euclidean(), man_dim=dim)
+        tangent_vectors = euc_to_tangent(x=x.tensor, u=u.tensor, c=self.c, dim=x.man_dim)
+        return TangentTensor(
+            data=tangent_vectors,
+            manifold_points=x,
+            manifold=self,
+            man_dim=dim,
+        )
 
     def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
         # TODO: check dimensions
@@ -126,7 +143,7 @@ class PoincareBall(Manifold):
 
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True
-    ) -> tuple[ManifoldParameter, Optional[nn.Parameter]]:
+    ) -> tuple[ManifoldParameter, Optional[Parameter]]:
         weight = ManifoldParameter(
             data=empty(in_features, out_features),
             manifold=Euclidean(),
@@ -134,13 +151,13 @@ class PoincareBall(Manifold):
         )
 
         if bias:
-            b = nn.Parameter(data=empty(out_features))
+            b = Parameter(data=empty(out_features))
         else:
             b = None
 
         return weight, b
 
-    def reset_parameters(self, weight: ManifoldParameter, bias: Optional[nn.Parameter]) -> None:
+    def reset_parameters(self, weight: ManifoldParameter, bias: Optional[Parameter]) -> None:
         in_features, out_features = weight.size()
         if in_features <= out_features:
             with no_grad():
@@ -161,7 +178,7 @@ class PoincareBall(Manifold):
         dilation: _size_2_t = 1,
         padding: _size_2_t = 0,
         stride: _size_2_t = 1,
-    ):
+    ) -> ManifoldTensor:
         # TODO: doesn't work with tuple dilation, padding, and stride. Should add this.
         # TODO: may have to cache some of this stuff for efficiency.
         in_channels = input.size(1)
@@ -174,7 +191,7 @@ class PoincareBall(Manifold):
         beta_ni = beta_func(in_channels / 2, 1 / 2)
         beta_n = beta_func(in_channels * kernel_vol / 2, 1 / 2)
 
-        input = self.logmap0(input)
+        input = self.logmap(x=None, y=input)
         input.tensor = input.tensor * beta_n / beta_ni
         new_tensor = unfold(
             input=input.tensor,
@@ -184,5 +201,5 @@ class PoincareBall(Manifold):
             stride=stride,
         )
         new_tensor = new_tensor.transpose(1, 2)
-        new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=2)
-        return self.expmap0(new_tensor)
+        new_tensor = TangentTensor(data=new_tensor, manifold_points=None, manifold=self, man_dim=2)
+        return self.expmap(new_tensor)

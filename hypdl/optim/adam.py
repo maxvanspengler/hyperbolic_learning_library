@@ -5,7 +5,7 @@ from torch import max, no_grad, zeros_like
 from torch.optim import Optimizer
 
 from hypdl.manifolds import Euclidean, Manifold
-from hypdl.tensors import ManifoldParameter, ManifoldTensor
+from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class RiemannianAdam(Optimizer):
@@ -39,6 +39,7 @@ class RiemannianAdam(Optimizer):
         super(RiemannianAdam, self).__init__(params=params, defaults=defaults)
 
     def step(self) -> None:
+        # TODO: refactor this and add some comments, because it's currently unreadable
         with no_grad():
             for group in self.param_groups:
                 betas = group["betas"]
@@ -68,11 +69,12 @@ class RiemannianAdam(Optimizer):
                         exp_avg = state["exp_avg"]
                         exp_avg_sq = state["exp_avg_sq"]
 
+                        # TODO: check if this next line makes sense, because I don't think so
                         grad.tensor.add_(param.tensor, alpha=weight_decay)
                         grad = manifold.euc_to_tangent(x=param, u=grad)
                         exp_avg.mul_(betas[0]).add_(grad.tensor, alpha=1 - betas[0])
                         exp_avg_sq.mul_(betas[1]).add_(
-                            manifold.inner(x=param, u=grad, v=grad, keepdim=True),
+                            manifold.inner(u=grad, v=grad, keepdim=True, safe_mode=False),
                             alpha=1 - betas[1],
                         )
                         bias_correction1 = 1 - betas[0] ** state["step"]
@@ -86,15 +88,21 @@ class RiemannianAdam(Optimizer):
                             denom = exp_avg_sq.div(bias_correction2).sqrt_()
 
                         direction = -lr * exp_avg.div(bias_correction1) / denom.add_(eps)
-                        direction = ManifoldTensor(
-                            data=direction, manifold=Euclidean(), man_dim=param.man_dim
+                        direction = TangentTensor(
+                            data=direction,
+                            manifold_points=param,
+                            manifold=manifold,
+                            man_dim=param.man_dim,
                         )
-                        exp_avg_man = ManifoldTensor(
-                            data=exp_avg, manifold=Euclidean(), man_dim=param.man_dim
+                        exp_avg_man = TangentTensor(
+                            data=exp_avg,
+                            manifold_points=param,
+                            manifold=manifold,
+                            man_dim=param.man_dim,
                         )
 
-                        new_param = manifold.expmap(x=param, v=direction)
-                        exp_avg_new = manifold.transp(param, new_param, exp_avg_man)
+                        new_param = manifold.expmap(direction)
+                        exp_avg_new = manifold.transp(v=exp_avg_man, y=new_param)
 
                         param.tensor.copy_(new_param.tensor)
                         exp_avg.copy_(exp_avg_new.tensor)

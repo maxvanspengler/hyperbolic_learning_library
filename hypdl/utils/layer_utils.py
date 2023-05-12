@@ -28,6 +28,6 @@ def check_if_man_dims_match(layer: Module, man_dim: int, input: ManifoldTensor) 
 
 
 def op_in_tangent_space(op: Callable, manifold: Manifold, input: ManifoldTensor) -> ManifoldTensor:
-    input = manifold.logmap0(input)
+    input = manifold.logmap(x=None, y=input)
     input.tensor = op(input.tensor)
-    return manifold.expmap0(input)
+    return manifold.expmap(input)

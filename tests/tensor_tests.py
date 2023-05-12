@@ -3,7 +3,7 @@ import unittest
 import torch
 
 from hypdl.manifolds import PoincareBall
-from hypdl.tensors import ManifoldTensor
+from hypdl.tensors import ManifoldTensor, TangentTensor
 
 
 class TestManifoldTensor(unittest.TestCase):
@@ -16,6 +16,26 @@ class TestManifoldTensor(unittest.TestCase):
             manifold=PoincareBall(),
             man_dim=-1,
             requires_grad=True,
+        )
+
+        self.tan_tensor = TangentTensor(
+            data=[
+                [
+                    [3.0, 2.0],
+                    [1.0, 2.0],
+                ],
+                [
+                    [1.0, 4.0],
+                    [4.0, 1.0],
+                ],
+                [
+                    [7.0, 2.0],
+                    [3.0, 4.0],
+                ],
+            ],
+            manifold_points=self.man_tensor,
+            manifold=self.man_tensor.manifold,
+            man_dim=-1,
         )
 
     def test_attributes(self):
