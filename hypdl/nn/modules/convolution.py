@@ -25,7 +25,7 @@ class HConvolution2d(Module):
         padding:
             Padding added to all four sides of the input. Default: 0
         id_init:
-            TODO(Philipp, 05/23): What is this for?
+            Use identity initialization (True) if appropriate or use HNN++ initialization (False).
 
     """
 
