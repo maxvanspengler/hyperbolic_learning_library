@@ -119,13 +119,23 @@ class PoincareBall(Manifold):
         )
 
     def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
-        # TODO: check dimensions
+        if x.man_dim != 1 or z.man_dim != 0:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
+                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
+                f"{z.man_dim}, respectively"
+            )
         return poincare_hyperplane_dists(x=x.tensor, z=z.tensor, r=r, c=self.c)
 
     def fully_connected(
         self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
     ) -> ManifoldTensor:
-        # TODO: check dimensions
+        if x.man_dim != 1 or z.man_dim != 0:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
+                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
+                f"{z.man_dim}, respectively"
+            )
         new_tensor = poincare_fully_connected(x=x.tensor, z=z.tensor, bias=bias, c=self.c)
         new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
         return self.project(new_tensor)
@@ -147,7 +157,7 @@ class PoincareBall(Manifold):
         weight = ManifoldParameter(
             data=empty(in_features, out_features),
             manifold=Euclidean(),
-            man_dim=-1,
+            man_dim=0,
         )
 
         if bias:
