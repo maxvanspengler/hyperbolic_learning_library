@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class Manifold(Module, ABC):
-    # TODO: Fix return types of methods for all manifolds
     def __init__(self) -> None:
         super(Manifold, self).__init__()
 

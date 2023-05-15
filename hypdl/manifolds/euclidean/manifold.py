@@ -115,7 +115,6 @@ class Euclidean(Manifold):
         return weight, b
 
     def reset_parameters(self, weight: ManifoldParameter, bias: Parameter) -> None:
-        # TODO: check if this actually saves the reset params
         kaiming_uniform_(weight.tensor, a=sqrt(5))
         if bias is not None:
             fan_in, _ = _calculate_fan_in_and_fan_out(weight.tensor)
