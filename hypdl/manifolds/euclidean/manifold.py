@@ -67,6 +67,12 @@ class Euclidean(Manifold):
         )
 
     def hyperplane_dists(self, x: ManifoldTensor, z: ManifoldTensor, r: Optional[Tensor]) -> Tensor:
+        if x.man_dim != 1 or z.man_dim != 0:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
+                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
+                f"{z.man_dim}, respectively"
+            )
         if r is None:
             return matmul(x.tensor, z.tensor)
         else:
@@ -75,6 +81,12 @@ class Euclidean(Manifold):
     def fully_connected(
         self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
     ) -> ManifoldTensor:
+        if x.man_dim != 1 or z.man_dim != 0:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
+                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
+                f"{z.man_dim}, respectively"
+            )
         if bias is None:
             new_tensor = matmul(x.tensor, z.tensor)
         else:
@@ -104,7 +116,7 @@ class Euclidean(Manifold):
         weight = ManifoldParameter(
             data=empty(in_features, out_features),
             manifold=self,
-            man_dim=1,
+            man_dim=0,
         )
 
         if bias:
