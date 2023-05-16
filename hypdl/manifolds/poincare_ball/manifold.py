@@ -29,7 +29,7 @@ from .math.diffgeom import (
     transp,
 )
 from .math.linalg import poincare_fully_connected, poincare_hyperplane_dists
-from .math.stats import frechet_mean, frechet_variance
+from .math.stats import frechet_mean, frechet_variance, midpoint
 
 
 class PoincareBall(Manifold):
@@ -141,9 +141,34 @@ class PoincareBall(Manifold):
         return self.project(new_tensor)
 
     def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
-        # TODO: make frechet mean have dim options and add dim checks
+        # TODO: make frechet mean have dim options, add dim checks and fix output man_dim
         new_tensor = frechet_mean(x=x.tensor, c=self.c, w=w)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
+
+    def midpoint(
+        self,
+        x: ManifoldTensor,
+        batch_dim: int = 0,
+        w: Optional[Tensor] = None,
+        keepdim: bool = False,
+    ) -> ManifoldTensor:
+        if isinstance(batch_dim, int):
+            batch_dim = [batch_dim]
+
+        if x.man_dim in batch_dim:
+            raise ValueError(
+                f"Tried to take a midpoint over dimensions {batch_dim}, but input has manifold "
+                f"dimension {x.man_dim} and cannot aggregate over this dimension"
+            )
+
+        # Output manifold dimension is shifted left for each batch dim that disappears
+        man_dim_shift = sum(bd < x.man_dim for bd in batch_dim)
+        new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
+
+        new_tensor = midpoint(
+            x=x.tensor, c=self.c, vec_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
+        )
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=new_man_dim)
 
     def frechet_variance(
         self, x: ManifoldTensor, mu: ManifoldTensor, dim: int = -1, w: Optional[Tensor] = None

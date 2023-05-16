@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -41,6 +41,31 @@ def frechet_mean(
     if w is None:
         w = torch.ones(x.shape[:-1]).to(x)
     return FrechetMean.apply(x, w, -c)
+
+
+def midpoint(
+    x: torch.Tensor,
+    c: torch.Tensor,
+    man_dim: int = -1,
+    batch_dim: Union[int, list[int]] = 0,
+    w: Optional[torch.Tensor] = None,
+    keepdim: bool = False,
+) -> torch.Tensor:
+    lambda_x = 2 / (1 - c * x.pow(2).sum(dim=man_dim, keepdim=True)).clamp_min(1e-15)
+    if w is None:
+        numerator = (lambda_x * x).sum(dim=batch_dim, keepdim=True)
+        denominator = (lambda_x - 1).sum(dim=batch_dim, keepdim=True)
+    else:
+        # TODO: test weights
+        numerator = (lambda_x * w * x).sum(dim=batch_dim, keepdim=True)
+        denominator = ((lambda_x - 1) * w).sum(dim=batch_dim, keepdim=True)
+
+    frac = numerator / denominator.clamp_min(1e-15)
+    midpoint = 1 / (1 + (1 - c * frac.pow(2).sum(dim=man_dim, keepdim=True)).sqrt()) * frac
+    if not keepdim:
+        midpoint = midpoint.squeeze(dim=batch_dim)
+
+    return midpoint
 
 
 def frechet_variance(
