@@ -54,6 +54,16 @@ class Manifold(Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def midpoint(
+        self,
+        x: ManifoldTensor,
+        batch_dim: Union[int, list[int]] = 0,
+        w: Optional[Tensor] = None,
+        keepdim: bool = False,
+    ) -> ManifoldTensor:
+        raise NotImplementedError
+
+    @abstractmethod
     def frechet_variance(
         self, x: ManifoldTensor, mu: ManifoldTensor, w: Optional[Tensor] = None
     ) -> Tensor:
