@@ -93,13 +93,28 @@ class Euclidean(Manifold):
             new_tensor = matmul(x.tensor, z.tensor) + bias
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
 
-    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
-        # TODO: fix all the dimensions here because it doesn't make sense currently
-        if w is None:
-            mean_tensor = x.tensor.mean(dim=-1)
-        else:
-            mean_tensor = matmul(w, x.tensor) / w.sum()
-        return ManifoldTensor(data=mean_tensor, manifold=self, man_dim=-1)
+    def frechet_mean(
+        self,
+        x: ManifoldTensor,
+        batch_dim: Union[int, list[int]] = 0,
+        keepdim: bool = False,
+    ) -> ManifoldTensor:
+        if isinstance(batch_dim, int):
+            batch_dim = [batch_dim]
+
+        if x.man_dim in batch_dim:
+            raise ValueError(
+                f"Tried to aggregate over dimensions {batch_dim}, but input has manifold "
+                f"dimension {x.man_dim} and cannot aggregate over this dimension"
+            )
+
+        # Output manifold dimension is shifted left for each batch dim that disappears
+        man_dim_shift = sum(bd < x.man_dim for bd in batch_dim)
+        new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
+
+        mean_tensor = x.tensor.mean(dim=batch_dim, keepdim=keepdim)
+
+        return ManifoldTensor(data=mean_tensor, manifold=self, man_dim=new_man_dim)
 
     def midpoint(
         self,
@@ -108,36 +123,28 @@ class Euclidean(Manifold):
         w: Optional[Tensor] = None,
         keepdim: bool = False,
     ) -> ManifoldTensor:
-        if isinstance(batch_dim, int):
-            batch_dim = [batch_dim]
-
-        if x.man_dim in batch_dim:
-            raise ValueError(
-                f"Tried to take a midpoint over dimensions {batch_dim}, but input has manifold "
-                f"dimension {x.man_dim} and cannot aggregate over this dimension"
-            )
-
-        # Output manifold dimension is shifted left for each batch dim that disappears
-        man_dim_shift = sum(bd < x.man_dim for bd in batch_dim)
-        new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
-
-        if w is None:
-            midpoint_tensor = x.tensor.mean(dim=batch_dim, keepdim=keepdim)
-        else:
-            # TODO: this weighted mean implementation won't always work, so needs a fix
-            midpoint_tensor = matmul(w, x.tensor) / w.sum()
-
-        return ManifoldTensor(data=midpoint_tensor, manifold=self, man_dim=new_man_dim)
+        return self.frechet_mean(x=x, batch_dim=batch_dim, w=w, keepdim=keepdim)
 
     def frechet_variance(
-        self, x: ManifoldTensor, mu: ManifoldTensor, dim: int = -1, w: Optional[Tensor] = None
+        self,
+        x: ManifoldTensor,
+        mu: Optional[ManifoldTensor] = None,
+        batch_dim: Union[int, list[int]] = -1,
+        keepdim: bool = False,
     ) -> Tensor:
-        if w is None:
-            return var(x.tensor, dim=dim)
+        if mu is None:
+            return var(x.tensor, dim=batch_dim, keepdim=keepdim)
         else:
-            v1 = w.sum()
-            v2 = w.square().sum()
-            return matmul(w, (x.tensor - mu.tensor).square()) / (v1 - v2 / v1)
+            if x.dim() != mu.dim():
+                for bd in sorted(batch_dim):
+                    mu.man_dim += 1 if bd <= mu.man_dim else 0
+                    mu.tensor = mu.tensor.unsqueeze(bd)
+            if mu.man_dim != x.man_dim:
+                raise ValueError("Input tensor and mean do not have matching manifold dimensions")
+            n = 1
+            for bd in batch_dim:
+                n *= x.size(dim=bd)
+            return (x.tensor - mu.tensor).pow(2).sum(dim=batch_dim, keepdim=keepdim) / (n - 1)
 
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True

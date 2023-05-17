@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from torch import Tensor, as_tensor, empty, eye, float32, no_grad
 from torch.nn import Parameter
@@ -140,10 +140,19 @@ class PoincareBall(Manifold):
         new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
         return self.project(new_tensor)
 
-    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
-        # TODO: make frechet mean have dim options, add dim checks and fix output man_dim
-        new_tensor = frechet_mean(x=x.tensor, c=self.c, w=w)
-        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
+    def frechet_mean(
+        self,
+        x: ManifoldTensor,
+        batch_dim: Union[int, list[int]] = 0,
+        keepdim: bool = False,
+    ) -> ManifoldTensor:
+        if isinstance(batch_dim, int):
+            batch_dim = [batch_dim]
+        output_man_dim = x.man_dim - sum(bd < x.man_dim for bd in batch_dim)
+        new_tensor = frechet_mean(
+            x=x.tensor, c=self.c, vec_dim=x.man_dim, batch_dim=batch_dim, keepdim=keepdim
+        )
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=output_man_dim)
 
     def midpoint(
         self,
@@ -157,7 +166,7 @@ class PoincareBall(Manifold):
 
         if x.man_dim in batch_dim:
             raise ValueError(
-                f"Tried to take a midpoint over dimensions {batch_dim}, but input has manifold "
+                f"Tried to aggregate over dimensions {batch_dim}, but input has manifold "
                 f"dimension {x.man_dim} and cannot aggregate over this dimension"
             )
 
@@ -171,10 +180,24 @@ class PoincareBall(Manifold):
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=new_man_dim)
 
     def frechet_variance(
-        self, x: ManifoldTensor, mu: ManifoldTensor, dim: int = -1, w: Optional[Tensor] = None
+        self,
+        x: ManifoldTensor,
+        mu: Optional[ManifoldTensor] = None,
+        batch_dim: Union[int, list[int]] = -1,
+        keepdim: bool = False,
     ) -> Tensor:
-        # TODO: make frechet variance have proper dim options and add dim checks
-        return frechet_variance(x=x.tensor, mu=mu.tensor, c=self.c, dim=dim, w=w)
+        if mu is not None:
+            mu = mu.tensor
+
+        # TODO: Check if x and mu have compatible man_dims
+        return frechet_variance(
+            x=x.tensor,
+            c=self.c,
+            mu=mu,
+            vec_dim=x.man_dim,
+            batch_dim=batch_dim,
+            keepdim=keepdim,
+        )
 
     def construct_dl_parameters(
         self, in_features: int, out_features: int, bias: bool = True

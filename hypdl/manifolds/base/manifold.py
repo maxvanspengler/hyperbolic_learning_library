@@ -50,7 +50,12 @@ class Manifold(Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def frechet_mean(self, x: ManifoldTensor, w: Optional[Tensor] = None) -> ManifoldTensor:
+    def frechet_mean(
+        self,
+        x: ManifoldTensor,
+        batch_dim: Union[int, list[int]] = 0,
+        keepdim: bool = False,
+    ) -> ManifoldTensor:
         raise NotImplementedError
 
     @abstractmethod
@@ -65,7 +70,11 @@ class Manifold(Module, ABC):
 
     @abstractmethod
     def frechet_variance(
-        self, x: ManifoldTensor, mu: ManifoldTensor, w: Optional[Tensor] = None
+        self,
+        x: ManifoldTensor,
+        mu: Optional[ManifoldTensor] = None,
+        batch_dim: Union[int, list[int]] = -1,
+        keepdim: bool = False,
     ) -> Tensor:
         raise NotImplementedError
 

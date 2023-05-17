@@ -20,27 +20,79 @@ class FrechetMean(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, x, w, K):
-        mean = frechet_ball_forward(x, w, K, rtol=_TOLEPS[x.dtype], atol=_TOLEPS[x.dtype])
-        ctx.save_for_backward(x, mean, w, K)
+    def forward(ctx, x, c, vec_dim, batch_dim, keepdim):
+        # Convert input dimensions to positive values
+        vec_dim = vec_dim if vec_dim > 0 else x.dim() + vec_dim
+        batch_dim = [bd if bd > 0 else x.dim() + bd for bd in batch_dim]
+
+        # Compute some dim ids for later
+        output_vec_dim = vec_dim - sum(bd < vec_dim for bd in batch_dim)
+        batch_start_id = -len(batch_dim) - 1
+        batch_stop_id = -2
+        original_dims = [x.size(bd) for bd in batch_dim]
+
+        # Move dims around and flatten the batch dimensions
+        x = x.movedim(
+            source=batch_dim + [vec_dim],
+            destination=list(range(batch_start_id, 0)),
+        )
+        x = x.flatten(
+            start_dim=batch_start_id, end_dim=batch_stop_id
+        )  # ..., prod(batch_dim), vec_dim
+
+        # Compute frechet mean and store variables
+        mean = frechet_ball_forward(X=x, K=c, rtol=_TOLEPS[x.dtype], atol=_TOLEPS[x.dtype])
+        ctx.save_for_backward(x, mean, c)
+        ctx.vec_dim = vec_dim
+        ctx.batch_dim = batch_dim
+        ctx.batch_start_id = batch_start_id
+        ctx.original_dims = original_dims
+
+        # Reorder dimensions to match dimensions of input
+        mean = mean.movedim(
+            source=list(range(output_vec_dim - mean.dim(), 0)),
+            destination=list(range(output_vec_dim + 1, mean.dim())) + [output_vec_dim],
+        )
+
+        # Add dimensions back to mean if keepdim
+        if keepdim:
+            for bd in sorted(batch_dim):
+                mean = mean.unsqueeze(bd)
+
         return mean
 
     @staticmethod
     def backward(ctx, grad_output):
-        X, mean, w, K = ctx.saved_tensors
-        dx, dw, dK = frechet_ball_backward(X, mean, grad_output, w, K)
-        return dx, dw, dK, None
+        x, mean, c = ctx.saved_tensors
+        dx, dc = frechet_ball_backward(X=x, y=mean, grad=grad_output, K=c)
+        vec_dim = ctx.vec_dim
+        batch_dim = ctx.batch_dim
+        batch_start_id = ctx.batch_start_id
+        original_dims = ctx.original_dims
+
+        # Unflatten the batch dimensions
+        dx = dx.unflatten(dim=-2, sizes=original_dims)
+
+        # Move the vector dimension back
+        dx = dx.movedim(
+            source=list(range(batch_start_id, 0)),
+            destination=batch_dim + [vec_dim],
+        )
+
+        return dx, dc, None, None, None
 
 
 def frechet_mean(
     x: torch.Tensor,
     c: torch.Tensor,
-    w: Optional[torch.Tensor] = None,
+    vec_dim: int = -1,
+    batch_dim: Union[int, list[int]] = 0,
+    keepdim: bool = False,
 ) -> torch.Tensor:
-    # TODO: FrechetMean.apply should take c instead of -c: need to rewrite the computation a bit.
-    if w is None:
-        w = torch.ones(x.shape[:-1]).to(x)
-    return FrechetMean.apply(x, w, -c)
+    if isinstance(batch_dim, int):
+        batch_dim = [batch_dim]
+
+    return FrechetMean.apply(x, c, vec_dim, batch_dim, keepdim)
 
 
 def midpoint(
@@ -70,17 +122,17 @@ def midpoint(
 
 def frechet_variance(
     x: torch.Tensor,
-    mu: torch.Tensor,
     c: torch.Tensor,
-    dim: int = -1,
-    w: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
+    mu: Optional[torch.Tensor] = None,
+    vec_dim: int = -1,
+    batch_dim: Union[int, list[int]] = 0,
+    keepdim: bool = False,
+) -> torch.Tensor:  # TODO
     """
     Args
     ----
         x (tensor): points of shape [..., points, dim]
         mu (tensor): mean of shape [..., dim]
-        w (tensor): weights of shape [..., points]
 
         where the ... of the three variables match
 
@@ -88,13 +140,16 @@ def frechet_variance(
     -------
         tensor of shape [...]
     """
-    distance = dist(x=x, y=mu, k=c, dim=dim)
-    distance = distance.pow(2)
+    if mu is None:
+        mu = frechet_mean(x=x, c=c, vec_dim=vec_dim, batch_dim=batch_dim, keepdim=True)
 
-    if w is None:
-        return distance.mean(dim=-1)
-    else:
-        return (distance * w).sum(dim=-1)
+    if x.dim() != mu.dim():
+        for bd in sorted(batch_dim):
+            mu = mu.unsqueeze(bd)
+
+    distance = dist(x=x, y=mu, c=c, dim=vec_dim, keepdim=keepdim)
+    distance = distance.pow(2)
+    return distance.mean(dim=batch_dim, keepdim=keepdim)
 
 
 def l_prime(y: torch.Tensor) -> torch.Tensor:
@@ -106,8 +161,7 @@ def l_prime(y: torch.Tensor) -> torch.Tensor:
 
 def frechet_ball_forward(
     X: torch.Tensor,
-    w: torch.Tensor,
-    K: torch.Tensor = torch.Tensor([-1]),
+    K: torch.Tensor = torch.Tensor([1]),
     max_iter: int = 1000,
     rtol: float = 1e-6,
     atol: float = 1e-6,
@@ -116,7 +170,6 @@ def frechet_ball_forward(
     Args
     ----
         X (tensor): point of shape [..., points, dim]
-        w (tensor): weights of shape [..., points]
         K (float): curvature (must be negative)
 
     Returns
@@ -133,11 +186,11 @@ def frechet_ball_forward(
         mu_ss = mu.pow(2).sum(dim=-1)
         xmu_ss = (X - mu.unsqueeze(-2)).pow(2).sum(dim=-1)
 
-        alphas = l_prime(-K * xmu_ss / ((1 + K * x_ss) * (1 + K * mu_ss.unsqueeze(-1)))) / (
-            1 + K * x_ss
+        alphas = l_prime(K * xmu_ss / ((1 - K * x_ss) * (1 - K * mu_ss.unsqueeze(-1)))) / (
+            1 - K * x_ss
         )
 
-        alphas = alphas * w
+        alphas = alphas
 
         c = (alphas * x_ss).sum(dim=-1)
         b = (alphas.unsqueeze(-1) * X).sum(dim=-2)
@@ -145,7 +198,9 @@ def frechet_ball_forward(
 
         b_ss = b.pow(2).sum(dim=-1)
 
-        eta = (a - K * c - ((a - K * c).pow(2) + 4 * K * b_ss).sqrt()) / (2 * (-K) * b_ss)
+        eta = (a + K * c - ((a + K * c).pow(2) - 4 * K * b_ss).sqrt()) / (2 * K * b_ss).clamp_min(
+            1e-15
+        )
 
         mu = eta.unsqueeze(-1) * b
 
@@ -181,7 +236,6 @@ def d2arcosh(x):
 def grad_var(
     X: torch.Tensor,
     y: torch.Tensor,
-    w: torch.Tensor,
     K: torch.Tensor,
 ) -> torch.Tensor:
     """
@@ -189,7 +243,6 @@ def grad_var(
     ----
         X (tensor): point of shape [..., points, dim]
         y (tensor): mean point of shape [..., dim]
-        w (tensor): weight tensor of shape [..., points]
         K (float): curvature (must be negative)
 
     Returns
@@ -197,25 +250,24 @@ def grad_var(
         grad (tensor): gradient of variance [..., dim]
     """
     yl = y.unsqueeze(-2)
-    xnorm = 1 + K * X.norm(dim=-1).pow(2)
-    ynorm = 1 + K * yl.norm(dim=-1).pow(2)
-    xynorm = (X - yl).norm(dim=-1).pow(2)
+    xnorm = 1 - K * X.pow(2).sum(dim=-1)
+    ynorm = 1 - K * yl.pow(2).sum(dim=-1)
+    xynorm = (X - yl).pow(2).sum(dim=-1)
 
     D = xnorm * ynorm
-    v = 1 - 2 * K * xynorm / D
+    v = 1 + 2 * K * xynorm / D
 
     Dl = D.unsqueeze(-1)
     vl = v.unsqueeze(-1)
 
     first_term = (X - yl) / Dl
-    sec_term = K / Dl.pow(2) * yl * xynorm.unsqueeze(-1) * xnorm.unsqueeze(-1)
-    return -(4 * darcosh(vl) * w.unsqueeze(-1) * (first_term + sec_term)).sum(dim=-2)
+    sec_term = -K / Dl.pow(2) * yl * xynorm.unsqueeze(-1) * xnorm.unsqueeze(-1)
+    return -(4 * darcosh(vl) * (first_term + sec_term)).sum(dim=-2)
 
 
 def inverse_hessian(
     X: torch.Tensor,
     y: torch.Tensor,
-    w: torch.Tensor,
     K: torch.Tensor,
 ) -> torch.Tensor:
     """
@@ -223,7 +275,6 @@ def inverse_hessian(
     ----
         X (tensor): point of shape [..., points, dim]
         y (tensor): mean point of shape [..., dim]
-        w (tensor): weight tensor of shape [..., points]
         K (float): curvature (must be negative)
 
     Returns
@@ -231,12 +282,12 @@ def inverse_hessian(
         inv_hess (tensor): inverse hessian of [..., points, dim, dim]
     """
     yl = y.unsqueeze(-2)
-    xnorm = 1 + K * X.norm(dim=-1).pow(2)
-    ynorm = 1 + K * yl.norm(dim=-1).pow(2)
-    xynorm = (X - yl).norm(dim=-1).pow(2)
+    xnorm = 1 - K * X.pow(2).sum(dim=-1)
+    ynorm = 1 - K * yl.pow(2).sum(dim=-1)
+    xynorm = (X - yl).pow(2).sum(dim=-1)
 
     D = xnorm * ynorm
-    v = 1 - 2 * K * xynorm / D
+    v = 1 + 2 * K * xynorm / D
 
     Dl = D.unsqueeze(-1)
     vl = v.unsqueeze(-1)
@@ -249,10 +300,10 @@ def inverse_hessian(
     matrix_val = (first_const.unsqueeze(-1) * yl).unsqueeze(-1) * (X - yl).unsqueeze(-2)
     first_term = matrix_val + matrix_val.transpose(-1, -2)
 
-    sec_const = -16 * (K**3) * xnorm.pow(2) / D.pow(3) * xynorm
+    sec_const = 16 * (K**3) * xnorm.pow(2) / D.pow(3) * xynorm
     sec_term = (sec_const.unsqueeze(-1) * yl).unsqueeze(-1) * yl.unsqueeze(-2)
 
-    third_const = -4 * K / D + 4 * (K**2) * xnorm / D.pow(2) * xynorm
+    third_const = 4 * K / D + 4 * (K**2) * xnorm / D.pow(2) * xynorm
     third_term = third_const.reshape(*third_const.shape, 1, 1) * torch.eye(y.shape[-1]).to(
         X
     ).reshape((1,) * len(third_const.shape) + (y.shape[-1], y.shape[-1]))
@@ -263,7 +314,7 @@ def inverse_hessian(
     T
     """
 
-    first_term = K / Dl * (X - yl)
+    first_term = -K / Dl * (X - yl)
     sec_term = K.pow(2) / Dl.pow(2) * yl * xynorm.unsqueeze(-1) * xnorm.unsqueeze(-1)
     T = 4 * (first_term + sec_term)
 
@@ -272,7 +323,7 @@ def inverse_hessian(
     """
     first_term = d2arcosh(vll) * T.unsqueeze(-1) * T.unsqueeze(-2)
     sec_term = darcosh(vll) * Ty
-    hessian = ((first_term + sec_term) * w.unsqueeze(-1).unsqueeze(-1)).sum(dim=-3) / -K
+    hessian = (first_term + sec_term).sum(dim=-3) / K
     inv_hess = torch.inverse(hessian)
     return inv_hess
 
@@ -281,7 +332,6 @@ def frechet_ball_backward(
     X: torch.Tensor,
     y: torch.Tensor,
     grad: torch.Tensor,
-    w: torch.Tensor,
     K: torch.Tensor,
 ) -> tuple[torch.Tensor]:
     """
@@ -295,23 +345,22 @@ def frechet_ball_backward(
     Returns
     -------
         gradients (tensor, tensor, tensor):
-            gradient of X [..., points, dim], weights [..., dim], curvature []
+            gradient of X [..., points, dim], curvature []
     """
     if not torch.is_tensor(K):
         K = torch.tensor(K).to(X)
 
     with torch.no_grad():
-        inv_hess = inverse_hessian(X, y, w=w, K=K)
+        inv_hess = inverse_hessian(X, y, K=K)
 
     with torch.enable_grad():
         # clone variables
         X = nn.Parameter(X.detach())
         y = y.detach()
-        w = nn.Parameter(w.detach())
         K = nn.Parameter(K)
 
         grad = (inv_hess @ grad.unsqueeze(-1)).squeeze()
-        gradf = grad_var(X, y, w, K)
-        dx, dw, dK = torch.autograd.grad(-gradf.squeeze(), (X, w, K), grad)
+        gradf = grad_var(X, y, K)
+        dx, dK = torch.autograd.grad(-gradf.squeeze(), (X, K), grad)
 
-    return dx, dw, dK
+    return dx, dK
