@@ -21,8 +21,8 @@ class TangentTensor:
         else:
             self.tensor = tensor(data, requires_grad=requires_grad)
 
-        # Store manifold dimension as a positive integer
-        if man_dim > 0:
+        # Store manifold dimension as a nonnegative integer
+        if man_dim >= 0:
             self.man_dim = man_dim
         else:
             self.man_dim = self.tensor.dim() + man_dim

@@ -85,7 +85,9 @@ class PoincareBall(Manifold):
 
     def transp(self, v: TangentTensor, y: ManifoldTensor) -> TangentTensor:
         dim = check_dims_with_broadcasting(v, y)
-        tangent_vectors = transp(x=v.manifold_points, y=y.tensor, v=v.tensor)
+        tangent_vectors = transp(
+            x=v.manifold_points.tensor, y=y.tensor, v=v.tensor, c=self.c, dim=dim
+        )
         return TangentTensor(
             data=tangent_vectors,
             manifold_points=y,
@@ -175,7 +177,7 @@ class PoincareBall(Manifold):
         new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
 
         new_tensor = midpoint(
-            x=x.tensor, c=self.c, vec_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
+            x=x.tensor, c=self.c, man_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
         )
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=new_man_dim)
 

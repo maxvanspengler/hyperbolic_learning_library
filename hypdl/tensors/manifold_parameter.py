@@ -31,7 +31,7 @@ class ManifoldParameter(ManifoldTensor, Parameter):
 
         self.manifold = manifold
 
-        if man_dim > 0:
+        if man_dim >= 0:
             self.man_dim = man_dim
         else:
             self.man_dim = self.tensor.dim() + man_dim
