@@ -23,7 +23,7 @@ class FrechetMean(torch.autograd.Function):
     def forward(ctx, x, c, vec_dim, batch_dim, keepdim):
         # Convert input dimensions to positive values
         vec_dim = vec_dim if vec_dim > 0 else x.dim() + vec_dim
-        batch_dim = [bd if bd > 0 else x.dim() + bd for bd in batch_dim]
+        batch_dim = [bd if bd >= 0 else x.dim() + bd for bd in batch_dim]
 
         # Compute some dim ids for later
         output_vec_dim = vec_dim - sum(bd < vec_dim for bd in batch_dim)
@@ -140,6 +140,9 @@ def frechet_variance(
     -------
         tensor of shape [...]
     """
+    if isinstance(batch_dim, int):
+        batch_dim = [batch_dim]
+
     if mu is None:
         mu = frechet_mean(x=x, c=c, vec_dim=vec_dim, batch_dim=batch_dim, keepdim=True)
 

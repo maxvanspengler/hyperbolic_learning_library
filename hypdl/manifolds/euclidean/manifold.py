@@ -123,7 +123,7 @@ class Euclidean(Manifold):
         w: Optional[Tensor] = None,
         keepdim: bool = False,
     ) -> ManifoldTensor:
-        return self.frechet_mean(x=x, batch_dim=batch_dim, w=w, keepdim=keepdim)
+        return self.frechet_mean(x=x, batch_dim=batch_dim, keepdim=keepdim)
 
     def frechet_variance(
         self,
@@ -132,6 +132,9 @@ class Euclidean(Manifold):
         batch_dim: Union[int, list[int]] = -1,
         keepdim: bool = False,
     ) -> Tensor:
+        if isinstance(batch_dim, int):
+            batch_dim = [batch_dim]
+
         if mu is None:
             return var(x.tensor, dim=batch_dim, keepdim=keepdim)
         else:
