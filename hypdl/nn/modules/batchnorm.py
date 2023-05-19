@@ -1,7 +1,9 @@
-from torch import Tensor, tensor, zeros
+from torch import tensor, zeros
 from torch.nn import Module, Parameter
 
 from hypdl.manifolds import Manifold
+from hypdl.tensors import ManifoldTensor, TangentTensor
+from hypdl.utils.layer_utils import check_if_manifolds_match
 
 
 class HBatchNorm(Module):
@@ -23,30 +25,31 @@ class HBatchNorm(Module):
         self.manifold = manifold
         self.use_midpoint = use_midpoint
 
+        # TODO: Store bias on manifold
         self.bias = Parameter(zeros(features))
         self.weight = Parameter(tensor(1.0))
 
-    def forward(self, x):
-        bias_on_manifold = self.manifold.expmap0(self.bias, dim=-1)
-
-        if self.use_midpoint:
-            # TODO: add midpoint to manifolds
-            # input_mean = self.manifold.midpoint(x, self.ball.c, vec_dim=-1, batch_dim=0)
-            pass
-        else:
-            input_mean = self.manifold.frechet_mean(x=x)
-
-        input_var = self.manifold.frechet_variance(x, input_mean, dim=-1)
-
-        input_logm = self.manifold.transp(
-            x=input_mean,
-            y=bias_on_manifold,
-            v=self.manifold.logmap(input_mean, x),
+    def forward(self, x: ManifoldTensor) -> ManifoldTensor:
+        check_if_manifolds_match(layer=self, input=x)
+        bias_on_manifold = self.manifold.expmap(
+            v=TangentTensor(data=self.bias, manifold_points=None, manifold=self.manifold)
         )
 
-        input_logm = (self.weight / (input_var + 1e-6)).sqrt() * input_logm
+        if self.use_midpoint:
+            input_mean = self.manifold.midpoint(x=x, batch_dim=0)
+        else:
+            input_mean = self.manifold.frechet_mean(x=x, batch_dim=0)
 
-        output = self.manifold.expmap(bias_on_manifold.unsqueeze(-2), input_logm)
+        input_var = self.manifold.frechet_variance(x=x, mu=input_mean, batch_dim=0)
+
+        input_logm = self.manifold.transp(
+            v=self.manifold.logmap(input_mean, x),
+            y=bias_on_manifold,
+        )
+
+        input_logm.tensor = (self.weight / (input_var + 1e-6)).sqrt() * input_logm.tensor
+
+        output = self.manifold.expmap(input_logm)
 
         return output
 
@@ -76,9 +79,18 @@ class HBatchNorm2d(Module):
             use_midpoint=use_midpoint,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: ManifoldTensor) -> ManifoldTensor:
+        check_if_manifolds_match(layer=self, input=x)
         batch_size, height, width = x.size(0), x.size(2), x.size(3)
-        x = x.permute(0, 2, 3, 1).flatten(start_dim=0, end_dim=2)
-        x = self.norm(x)
-        x = x.reshape(batch_size, height, width, self.features).permute(0, 3, 1, 2)
-        return x
+        flat_x = ManifoldTensor(
+            data=x.tensor.permute(0, 2, 3, 1).flatten(start_dim=0, end_dim=2),
+            manifold=x.manifold,
+            man_dim=-1,
+        )
+        flat_x = self.norm(flat_x)
+        new_tensor = flat_x.tensor.reshape(batch_size, height, width, self.features).permute(
+            0, 3, 1, 2
+        )
+        return ManifoldTensor(
+            data=new_tensor, manifold=x.manifold, man_dim=1
+        )
