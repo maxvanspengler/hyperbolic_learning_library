@@ -91,6 +91,4 @@ class HBatchNorm2d(Module):
         new_tensor = flat_x.tensor.reshape(batch_size, height, width, self.features).permute(
             0, 3, 1, 2
         )
-        return ManifoldTensor(
-            data=new_tensor, manifold=x.manifold, man_dim=1
-        )
+        return ManifoldTensor(data=new_tensor, manifold=x.manifold, man_dim=1)
