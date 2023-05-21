@@ -2,6 +2,7 @@ import pytest
 import torch
 
 from hypdl.manifolds import PoincareBall
+from hypdl.manifolds.poincare_ball import Curvature
 from hypdl.tensors import ManifoldTensor
 
 
@@ -12,7 +13,7 @@ def manifold_tensor() -> ManifoldTensor:
             [1.0, 2.0],
             [3.0, 4.0],
         ],
-        manifold=PoincareBall(),
+        manifold=PoincareBall(c=Curvature()),
         man_dim=-1,
         requires_grad=True,
     )
