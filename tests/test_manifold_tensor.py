@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from hypdl.manifolds import PoincareBall
-from hypdl.manifolds.poincare_ball import Curvature
+from hypdl.manifolds.poincare_ball.curvature import Curvature
 from hypdl.tensors import ManifoldTensor
 
 
