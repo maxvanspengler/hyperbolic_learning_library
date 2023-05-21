@@ -11,10 +11,10 @@ class Curvature(Module):
         self,
         _c: float = 1.0,
         learnable: bool = True,
-        non_negative_function: Callable[[Tensor], Tensor] = softplus,
+        positive_function: Callable[[Tensor], Tensor] = softplus,
     ):
         self._c = Parameter(as_tensor(_c, dtype=float32), requires_grad=learnable)
-        self._non_negative_function = non_negative_function
+        self._positive_function = positive_function
 
     def forward(self) -> Tensor:
-        return self._non_negative_function(self._c)
+        return self._positive_function(self._c)
