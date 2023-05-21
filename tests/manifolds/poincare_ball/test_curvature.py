@@ -10,4 +10,4 @@ def test_curvature(mocker: MockerFixture) -> None:
     curvature = Curvature(_c=1.0, learnable=False, positive_function=mocked_positive_function)
     c = curvature()
     assert c == 1.33
-    mocked_non_negative_function.assert_called_once_with(1.0)
+    mocked_positive_function.assert_called_once_with(1.0)
