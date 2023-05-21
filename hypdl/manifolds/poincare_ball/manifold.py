@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-from torch import Tensor, empty, eye, float32, no_grad
+from torch import Tensor, empty, eye, no_grad
 from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
 from torch.nn.functional import softplus, unfold

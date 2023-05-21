@@ -1,5 +1,6 @@
 from typing import Callable
 
+import torch
 from torch import Tensor, as_tensor
 from torch.nn import Module
 from torch.nn.functional import softplus
@@ -13,7 +14,7 @@ class Curvature(Module):
         learnable: bool = True,
         positive_function: Callable[[Tensor], Tensor] = softplus,
     ):
-        self._c = Parameter(as_tensor(_c, dtype=float32), requires_grad=learnable)
+        self._c = Parameter(as_tensor(_c, dtype=torch.float32), requires_grad=learnable)
         self._positive_function = positive_function
 
     def forward(self) -> Tensor:
