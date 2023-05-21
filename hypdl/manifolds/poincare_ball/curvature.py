@@ -14,6 +14,7 @@ class Curvature(Module):
         learnable: bool = True,
         positive_function: Callable[[Tensor], Tensor] = softplus,
     ):
+        super(Curvature, self).__init__()
         self._c = Parameter(as_tensor(_c, dtype=torch.float32), requires_grad=learnable)
         self._positive_function = positive_function
 
