@@ -13,7 +13,7 @@ def manifold_tensor() -> ManifoldTensor:
             [1.0, 2.0],
             [3.0, 4.0],
         ],
-        manifold=PoincareBall(c=Curvature()),
+        manifold=PoincareBall(curvature=Curvature()),
         man_dim=-1,
         requires_grad=True,
     )
