@@ -8,15 +8,28 @@ from torch.nn.parameter import Parameter
 
 
 class Curvature(Module):
+    """Class representing curvature of a manifold.
+
+    Attributes:
+        value:
+            Learnable parameter indicating curvature of the manifold. The actual
+            curvature is calculated as constraining_strategy(value).
+        constraining_strategy:
+            Function applied to the curvature value in order to constrain the
+            curvature of the manifold. By default uses softplus to guarantee
+            positive curvature.
+
+    """
+
     def __init__(
         self,
-        _c: float = 1.0,
-        learnable: bool = True,
-        positive_function: Callable[[Tensor], Tensor] = softplus,
+        value: float = 1.0,
+        constraining_strategy: Callable[[Tensor], Tensor] = softplus,
     ):
         super(Curvature, self).__init__()
-        self._c = Parameter(as_tensor(_c, dtype=torch.float32), requires_grad=learnable)
-        self._positive_function = positive_function
+        self.value = Parameter(as_tensor(value, dtype=torch.float32))
+        self.constraining_strategy = constraining_strategy
 
     def forward(self) -> Tensor:
-        return self._positive_function(self._c)
+        """Returns curvature calculated as constraining_strategy(value)."""
+        return self.constraining_strategy(self.value)
