@@ -1,8 +1,8 @@
 from torch import Tensor
 from torch.nn import Module
 
-from hypdl.tensors import ManifoldTensor, TangentTensor
 from hypdl.manifolds import Manifold
+from hypdl.tensors import ManifoldTensor, TangentTensor
 
 
 class ExpMap0(Module):

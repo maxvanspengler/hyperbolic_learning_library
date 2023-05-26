@@ -1,5 +1,6 @@
-from hypdl.tensors import ManifoldTensor
 from torch.nn import Module, functional
+
+from hypdl.tensors import ManifoldTensor
 
 
 class HFlatten(Module):
