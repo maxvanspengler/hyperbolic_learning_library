@@ -10,7 +10,8 @@ from hypdl.tensors.manifold_tensor import ManifoldTensor
 
 class ManifoldParameter(ManifoldTensor, Parameter):
     _allowed_methods = [
-        torch._has_compatible_shallow_copy_type,  # Is required for torch.nn.Parameter
+        torch._has_compatible_shallow_copy_type,  # Required for torch.nn.Parameter
+        torch.Tensor.copy_,                       # Required to load ManifoldParameters state dicts
     ]
 
     def __new__(cls, data, manifold, man_dim, requires_grad=True):
@@ -72,6 +73,6 @@ class ManifoldParameter(ManifoldTensor, Parameter):
         #     return func(args[0].tensor)
         # TODO: check if there are torch functions that should be allowed
         raise TypeError(
-            f"Attempting to apply the torch function {func} on a ManifoldParameter."
+            f"Attempting to apply the torch function {func} on a ManifoldParameter. "
             f"Use ManifoldParameter.tensor as argument to {func} instead."
         )
