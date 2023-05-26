@@ -64,7 +64,7 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 
 from hypdl.manifolds import PoincareBall
-from hypdl.tensors import ManifoldTensor, TangentTensor
+from hypdl.tensors import ManifoldTensor
 
 # Setting the curvature of the ball to 0.1 and making it a learnable parameter
 # is usually suboptimal but can make training smoother.
