@@ -11,7 +11,7 @@ from hypdl.tensors.manifold_tensor import ManifoldTensor
 class ManifoldParameter(ManifoldTensor, Parameter):
     _allowed_methods = [
         torch._has_compatible_shallow_copy_type,  # Required for torch.nn.Parameter
-        torch.Tensor.copy_,                       # Required to load ManifoldParameters state dicts
+        torch.Tensor.copy_,  # Required to load ManifoldParameters state dicts
     ]
 
     def __new__(cls, data, manifold, man_dim, requires_grad=True):
