@@ -64,23 +64,19 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 
 from hypdl.manifolds import PoincareBall
-from hypdl.tensors import ManifoldTensor
+from hypdl.tensors import ManifoldTensor, TangentTensor
 
 # Setting the curvature of the ball to 0.1 and making it a learnable parameter
 # is usually suboptimal but can make training smoother.
 manifold = PoincareBall(c=0.1, learnable=True)
 
 
-def get_manifold_tensor(tensor: torch.Tensor, dim: int) -> ManifoldTensor:
-    # TODO: Can expmap0 return a ManifoldTensor directly?
-    return ManifoldTensor(data=manifold.expmap0(v=tensor, dim=dim), manifold=manifold, man_dim=dim)
-
-
 ########################################################################
 # 3. Define a hyperbolic Convolutional Neural Network
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's rebuild the convolutional neural network from torchvision's tutorial
-# using hyperbolic modules.
+# using hyperbolic modules. We add an extra layer at the very beginning to map
+# our input images to hyperbolic space!
 
 
 from torch import nn
@@ -88,10 +84,14 @@ from torch import nn
 from hypdl import nn as hnn
 
 
-# TODO: Add base class hnn.Module?
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
+
+        # apply the exponential map to the inputs
+        self.expmap = hnn.ExpMap0(manifold=manifold, man_dim=1)
+
+        # rebuild the convolutional neural network from torchvision's tutorial
         self.conv1 = hnn.HConvolution2d(
             in_channels=3, out_channels=6, kernel_size=5, manifold=manifold
         )
@@ -105,9 +105,10 @@ class Net(nn.Module):
         self.relu = hnn.HReLU(manifold=manifold)
 
     def forward(self, x):
+        x = self.expmap(x)
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
+        x = x.flatten(start_dim=1)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
@@ -119,15 +120,17 @@ net = Net()
 ########################################################################
 # 4. Define a Loss function and optimizer
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Let's use a Classification Cross-Entropy loss and Adam optimizer. Adam is
-# preferred because hyperbolic linear layers can sometimes have training
+# Let's use a Classification Cross-Entropy loss and RiemannianAdam optimizer.
+# Adam is preferred because hyperbolic linear layers can sometimes have training
 # difficulties early on due to poor initialization.
 
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
-optimizer = optim.Adam(net.parameters())
+from hypdl.optim import RiemannianAdam
+
+optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
 
 ########################################################################
@@ -143,14 +146,13 @@ for epoch in range(2):  # loop over the dataset multiple times
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
-        manifold_inputs = get_manifold_tensor(tensor=inputs, dim=1)
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = net(manifold_inputs)
-        loss = criterion(outputs, labels)
+        outputs = net(inputs)
+        loss = criterion(outputs.tensor, labels)
         loss.backward()
         optimizer.step()
 
@@ -189,11 +191,9 @@ total = 0
 with torch.no_grad():
     for data in testloader:
         images, labels = data
-        manifold_images = get_manifold_tensor(tensor=images, dim=1)
         # calculate outputs by running images through the network
-        outputs = net(manifold_images)
+        outputs = net(images)
         # the class with the highest energy is what we choose as prediction
-        # TODO: Make torch.max and similar functions work on ManifoldTensor
         _, predicted = torch.max(outputs.tensor, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
@@ -217,9 +217,7 @@ total_pred = {classname: 0 for classname in classes}
 with torch.no_grad():
     for data in testloader:
         images, labels = data
-        manifold_images = get_manifold_tensor(tensor=images, dim=1)
-        outputs = net(manifold_images)
-        # TODO: Make torch.max and similar functions work on ManifoldTensor
+        outputs = net(images)
         _, predictions = torch.max(outputs.tensor, 1)
         # collect the correct predictions for each class
         for label, prediction in zip(labels, predictions):
