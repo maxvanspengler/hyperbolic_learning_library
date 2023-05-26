@@ -4,7 +4,7 @@ from hypdl.tensors import ManifoldTensor
 from hypdl.manifolds import PoincareBall
 
 
-def test_hflatten():
+def test_hflatten() -> None:
     manifold_tensor = ManifoldTensor(
         data=[
             [
