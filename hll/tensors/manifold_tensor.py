@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from torch import Tensor, tensor
 
-from hypdl.manifolds import Manifold
+from hll.manifolds import Manifold
 
 
 class ManifoldTensor:

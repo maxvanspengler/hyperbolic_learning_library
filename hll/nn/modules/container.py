@@ -1,8 +1,8 @@
 from torch.nn import Module, Sequential
 
-from hypdl.manifolds import Manifold
-from hypdl.tensors import ManifoldTensor
-from hypdl.utils.layer_utils import check_if_manifolds_match
+from hll.manifolds import Manifold
+from hll.tensors import ManifoldTensor
+from hll.utils.layer_utils import check_if_manifolds_match
 
 
 class TangentSequential(Module):

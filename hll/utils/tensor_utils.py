@@ -1,6 +1,6 @@
 from torch import broadcast_shapes, equal
 
-from hypdl.tensors import ManifoldTensor, TangentTensor
+from hll.tensors import ManifoldTensor, TangentTensor
 
 
 def check_dims_with_broadcasting(*args: ManifoldTensor) -> int:

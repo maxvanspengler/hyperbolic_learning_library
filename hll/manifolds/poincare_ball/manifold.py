@@ -6,11 +6,11 @@ from torch.nn.common_types import _size_2_t
 from torch.nn.functional import softplus, unfold
 from torch.nn.init import normal_, zeros_
 
-from hypdl.manifolds.base import Manifold
-from hypdl.manifolds.euclidean import Euclidean
-from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
-from hypdl.utils.math import beta_func
-from hypdl.utils.tensor_utils import (
+from hll.manifolds.base import Manifold
+from hll.manifolds.euclidean import Euclidean
+from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hll.utils.math import beta_func
+from hll.utils.tensor_utils import (
     check_dims_with_broadcasting,
     check_tangent_tensor_positions,
 )

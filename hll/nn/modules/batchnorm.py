@@ -1,9 +1,9 @@
 from torch import tensor, zeros
 from torch.nn import Module, Parameter
 
-from hypdl.manifolds import Manifold
-from hypdl.tensors import ManifoldTensor, TangentTensor
-from hypdl.utils.layer_utils import check_if_manifolds_match
+from hll.manifolds import Manifold
+from hll.tensors import ManifoldTensor, TangentTensor
+from hll.utils.layer_utils import check_if_manifolds_match
 
 
 class HBatchNorm(Module):

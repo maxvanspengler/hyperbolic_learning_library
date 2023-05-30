@@ -4,8 +4,8 @@ from typing import Union
 from torch import no_grad
 from torch.optim import Optimizer
 
-from hypdl.manifolds import Euclidean, Manifold
-from hypdl.tensors import ManifoldParameter, ManifoldTensor
+from hll.manifolds import Euclidean, Manifold
+from hll.tensors import ManifoldParameter, ManifoldTensor
 
 
 class RiemannianSGD(Optimizer):
