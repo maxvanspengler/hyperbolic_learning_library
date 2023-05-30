@@ -8,7 +8,7 @@ from torch.nn import Module, Parameter
 
 # TODO: find a less hacky solution for this
 if TYPE_CHECKING:
-    from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+    from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class Manifold(Module, ABC):

@@ -4,8 +4,8 @@ import torch
 from torch import Tensor, tensor
 from torch.nn import Parameter
 
-from hypdl.manifolds.base import Manifold
-from hypdl.tensors.manifold_tensor import ManifoldTensor
+from hll.manifolds.base import Manifold
+from hll.tensors.manifold_tensor import ManifoldTensor
 
 
 class ManifoldParameter(ManifoldTensor, Parameter):

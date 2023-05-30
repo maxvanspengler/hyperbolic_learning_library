@@ -4,8 +4,8 @@ from typing import Union
 from torch import max, no_grad, zeros_like
 from torch.optim import Optimizer
 
-from hypdl.manifolds import Euclidean, Manifold
-from hypdl.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hll.manifolds import Euclidean, Manifold
+from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class RiemannianAdam(Optimizer):
