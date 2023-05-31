@@ -266,6 +266,5 @@ class PoincareBall(Manifold):
             padding=padding,
             stride=stride,
         )
-        new_tensor = new_tensor.transpose(1, 2)
-        new_tensor = TangentTensor(data=new_tensor, manifold_points=None, manifold=self, man_dim=2)
+        new_tensor = TangentTensor(data=new_tensor, manifold_points=None, manifold=self, man_dim=1)
         return self.expmap(new_tensor)
