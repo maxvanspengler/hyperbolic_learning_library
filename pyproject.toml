@@ -15,6 +15,9 @@ dev = [
     "black",
     "isort",
     "pytest",
+    "sphinx",
+    "sphinx-apidoc",
+    "sphinx-gallery",
 ]
 
 [tool.black]
