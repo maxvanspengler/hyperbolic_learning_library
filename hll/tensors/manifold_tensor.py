@@ -138,8 +138,6 @@ class ManifoldTensor:
         """Returns a transposed version of the manifold tensor. The given dimensions
         dim0 and dim1 are swapped.
         """
-        # TODO(Philipp, 05/23): Why is this operation done in place when all the
-        # other ones copy the tensor?
         if self.man_dim == dim0:
             new_man_dim = dim1
         elif self.man_dim == dim1:
