@@ -1,6 +1,5 @@
 import pytest
 import torch
-
 from hypdl.manifolds import PoincareBall
 from hypdl.nn import ExpMap0
 from hypdl.tensors import ManifoldTensor

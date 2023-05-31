@@ -1,5 +1,4 @@
 import pytest
-
 from hypdl.manifolds import PoincareBall
 from hypdl.nn import HFlatten
 from hypdl.tensors import ManifoldTensor
