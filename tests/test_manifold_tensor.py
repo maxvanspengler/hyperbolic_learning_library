@@ -1,9 +1,9 @@
 import pytest
 import torch
 
-from hypdl.manifolds import PoincareBall
-from hypdl.manifolds.poincare_ball.curvature import Curvature
-from hypdl.tensors import ManifoldTensor
+from hll.manifolds import PoincareBall
+from hll.manifolds.poincare_ball.curvature import Curvature
+from hll.tensors import ManifoldTensor
 
 
 @pytest.fixture

@@ -2,8 +2,8 @@ from typing import Any, Optional
 
 from torch import Tensor, broadcast_shapes, tensor
 
-from hypdl.manifolds import Manifold
-from hypdl.tensors.manifold_tensor import ManifoldTensor
+from hll.manifolds import Manifold
+from hll.tensors.manifold_tensor import ManifoldTensor
 
 
 class TangentTensor:
