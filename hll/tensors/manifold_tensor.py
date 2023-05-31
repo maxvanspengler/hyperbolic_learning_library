@@ -89,12 +89,13 @@ class ManifoldTensor:
         only dimensions starting with start_dim and ending with end_dim are flattend.
 
         Raises:
-            ValueError: When start_dim is smaller than the manifold dimension.
+            ValueError: When start_dim is smaller and end_dim is larger than the
+            manifold dimension.
 
         """
-        if start_dim < self.man_dim:
+        if start_dim < self.man_dim and (end_dim == -1 or end_dim >= self.man_dim):
             raise ValueError(
-                f"Can't flatten the manifold dimension {self.man_dim} of " f"manifold tensor!"
+                f"Can't flatten the manifold dimension {self.man_dim} of manifold tensor!"
             )
 
         flattened = torch.flatten(self.tensor, start_dim=start_dim, end_dim=end_dim)
