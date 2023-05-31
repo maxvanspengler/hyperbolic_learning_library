@@ -49,7 +49,7 @@ class PoincareBall(Manifold):
         """Initializes an instance of PoincareBall manifold.
 
         Examples:
-            >>> from hypdl.manifolds import PoincareBall, Curvature
+            >>> from hll.manifolds import PoincareBall, Curvature
             >>> curvature = Curvature(value=1.0)
             >>> manifold = Manifold(c=curvature)
 

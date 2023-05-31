@@ -1,7 +1,8 @@
 import pytest
-from hypdl.manifolds import PoincareBall
-from hypdl.nn import HFlatten
-from hypdl.tensors import ManifoldTensor
+
+from hll.manifolds import PoincareBall
+from hll.nn import HFlatten
+from hll.tensors import ManifoldTensor
 
 
 def test_hflatten() -> None:
