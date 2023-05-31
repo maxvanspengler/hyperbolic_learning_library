@@ -63,12 +63,12 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 # We use the Poincaré ball model for the purposes of this tutorial.
 
 
-from hypdl.manifolds import PoincareBall
-from hypdl.tensors import ManifoldTensor
+from hll.manifolds import Curvature, PoincareBall
+from hll.tensors import ManifoldTensor
 
 # Setting the curvature of the ball to 0.1 and making it a learnable parameter
 # is usually suboptimal but can make training smoother.
-manifold = PoincareBall(c=0.1, learnable=True)
+manifold = PoincareBall(c=Curvature(0.1))
 
 
 ########################################################################
@@ -81,7 +81,7 @@ manifold = PoincareBall(c=0.1, learnable=True)
 
 from torch import nn
 
-from hypdl import nn as hnn
+from hll import nn as hnn
 
 
 class Net(nn.Module):

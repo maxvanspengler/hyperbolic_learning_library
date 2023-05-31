@@ -3,8 +3,8 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hypdl"
-description = "A framework for creating hyperbolic deep neural networks in PyTorch"
+name = "hll"
+description = "A framework for hyperbolic learning in PyTorch"
 version = "0.0.1"
 dependencies = [
     "torch",
@@ -15,6 +15,7 @@ dev = [
     "black",
     "isort",
     "pytest",
+    "pytest_mock",
 ]
 
 [tool.black]
@@ -24,4 +25,4 @@ line-length = 100
 profile = "black"
 
 [tool.setuptools.packages.find]
-include = ["hypdl*"]
+include = ["hll*"]
