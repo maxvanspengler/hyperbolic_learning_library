@@ -1,6 +1,6 @@
 import pytest
 
-from hll.manifolds import PoincareBall
+from hll.manifolds import Curvature, PoincareBall
 from hll.nn import HFlatten
 from hll.tensors import ManifoldTensor
 
@@ -17,7 +17,7 @@ def test_hflatten() -> None:
                 [7.0, 8.0],
             ],
         ],
-        manifold=PoincareBall(),
+        manifold=PoincareBall(c=Curvature()),
         man_dim=1,
         requires_grad=True,
     )
@@ -39,7 +39,7 @@ def test_hflatten__raises_value_error():
                 [7.0, 8.0],
             ],
         ],
-        manifold=PoincareBall(),
+        manifold=PoincareBall(c=Curvature()),
         man_dim=1,
         requires_grad=True,
     )

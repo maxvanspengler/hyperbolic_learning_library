@@ -1,14 +1,14 @@
 import pytest
 import torch
 
-from hll.manifolds import PoincareBall
+from hll.manifolds import Curvature, PoincareBall
 from hll.nn import ExpMap0
 from hll.tensors import ManifoldTensor
 
 
 def test_expmap0() -> None:
     inputs = torch.randn(10, 2)
-    manifold = PoincareBall()
+    manifold = PoincareBall(c=Curvature())
     expmap0 = ExpMap0(
         manifold=manifold,
         man_dim=1,
