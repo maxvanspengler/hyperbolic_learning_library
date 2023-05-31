@@ -81,17 +81,19 @@ class Euclidean(Manifold):
     def fully_connected(
         self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
     ) -> ManifoldTensor:
-        if x.man_dim != 1 or z.man_dim != 0:
+        if z.man_dim != 0:
             raise ValueError(
-                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
-                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
-                f"{z.man_dim}, respectively"
+                f"Expected the manifold dimension of the hyperplane orientations to be 0, but got "
+                f"{z.man_dim} instead"
             )
-        if bias is None:
-            new_tensor = matmul(x.tensor, z.tensor)
-        else:
-            new_tensor = matmul(x.tensor, z.tensor) + bias
-        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
+
+        dim_shifted_x_tensor = x.tensor.movedim(source=x.man_dim, destination=-1)
+        dim_shifted_new_tensor = matmul(dim_shifted_x_tensor, z.tensor)
+        if bias is not None:
+            dim_shifted_new_tensor = dim_shifted_new_tensor + bias
+        new_tensor = dim_shifted_new_tensor.movedim(source=-1, destination=x.man_dim)
+
+        return ManifoldTensor(data=new_tensor, manifold=self, man_dim=x.man_dim)
 
     def frechet_mean(
         self,
@@ -187,5 +189,4 @@ class Euclidean(Manifold):
             padding=padding,
             stride=stride,
         )
-        new_tensor = new_tensor.transpose(1, 2)
-        return ManifoldTensor(data=new_tensor, manifold=input.manifold, man_dim=-1)
+        return ManifoldTensor(data=new_tensor, manifold=input.manifold, man_dim=1)
