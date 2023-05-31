@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-from torch import Tensor, as_tensor, empty, eye, float32, no_grad
+from torch import Tensor, empty, eye, no_grad
 from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
 from torch.nn.functional import softplus, unfold
@@ -8,6 +8,7 @@ from torch.nn.init import normal_, zeros_
 
 from hll.manifolds.base import Manifold
 from hll.manifolds.euclidean import Euclidean
+from hll.manifolds.poincare_ball.curvature import Curvature
 from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 from hll.utils.math import beta_func
 from hll.utils.tensor_utils import (
@@ -33,60 +34,64 @@ from .math.stats import frechet_mean, frechet_variance, midpoint
 
 
 class PoincareBall(Manifold):
-    """
-    Class representing the Poincare ball model of hyperbolic space.
+    """Class representing the Poincare ball model of hyperbolic space.
 
-    Implementation based on the geoopt implementation,
-    but changed to use hyperbolic torch functions.
+    Implementation based on the geoopt implementation, but changed to use
+    hyperbolic torch functions.
+
+    Attributes:
+        c:
+            Curvature of the manifold.
+
     """
 
-    def __init__(self, c=1.0, learnable=False):
+    def __init__(self, c: Curvature):
+        """Initializes an instance of PoincareBall manifold.
+
+        Examples:
+            >>> from hypdl.manifolds import PoincareBall, Curvature
+            >>> curvature = Curvature(value=1.0)
+            >>> manifold = Manifold(c=curvature)
+
+        """
         super(PoincareBall, self).__init__()
-        c = as_tensor(c, dtype=float32)
-        self.isp_c = Parameter(c, requires_grad=learnable)
-        self.learnable = learnable
-
-    @property
-    def c(self) -> Tensor:
-        # TODO: should probably inverse softplus during init to account for this
-        # otherwise setting c = 1.0 doesn't actually lead to ball.c = 1.0
-        return softplus(self.isp_c)
+        self.c = c
 
     def mobius_add(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
         dim = check_dims_with_broadcasting(x, y)
-        new_tensor = mobius_add(x=x, y=y, c=self.c, dim=dim)
+        new_tensor = mobius_add(x=x, y=y, c=self.c(), dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
     def project(self, x: ManifoldTensor, eps: float = -1.0) -> ManifoldTensor:
-        new_tensor = project(x=x.tensor, c=self.c, dim=x.man_dim, eps=eps)
+        new_tensor = project(x=x.tensor, c=self.c(), dim=x.man_dim, eps=eps)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=x.man_dim)
 
     def expmap(self, v: TangentTensor) -> ManifoldTensor:
         dim = v.broadcasted_man_dim
         if v.manifold_points is None:
-            new_tensor = expmap0(v=v.tensor, c=self.c, dim=dim)
+            new_tensor = expmap0(v=v.tensor, c=self.c(), dim=dim)
         else:
-            new_tensor = expmap(x=v.manifold_points.tensor, v=v.tensor, c=self.c, dim=dim)
+            new_tensor = expmap(x=v.manifold_points.tensor, v=v.tensor, c=self.c(), dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
     def logmap(self, x: Optional[ManifoldTensor], y: ManifoldTensor):
         if x is None:
             dim = y.man_dim
-            new_tensor = logmap0(y=y.tensor, c=self.c, dim=y.man_dim)
+            new_tensor = logmap0(y=y.tensor, c=self.c(), dim=y.man_dim)
         else:
             dim = check_dims_with_broadcasting(x, y)
-            new_tensor = logmap(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
+            new_tensor = logmap(x=x.tensor, y=y.tensor, c=self.c(), dim=dim)
         return TangentTensor(data=new_tensor, manifold_points=x, manifold=self, man_dim=dim)
 
     def gyration(self, u: ManifoldTensor, v: ManifoldTensor, w: ManifoldTensor) -> ManifoldTensor:
         dim = check_dims_with_broadcasting(u, v, w)
-        new_tensor = gyration(u=u.tensor, v=v.tensor, w=w.tensor, c=self.c, dim=dim)
+        new_tensor = gyration(u=u.tensor, v=v.tensor, w=w.tensor, c=self.c(), dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
     def transp(self, v: TangentTensor, y: ManifoldTensor) -> TangentTensor:
         dim = check_dims_with_broadcasting(v, y)
         tangent_vectors = transp(
-            x=v.manifold_points.tensor, y=y.tensor, v=v.tensor, c=self.c, dim=dim
+            x=v.manifold_points.tensor, y=y.tensor, v=v.tensor, c=self.c(), dim=dim
         )
         return TangentTensor(
             data=tangent_vectors,
@@ -97,7 +102,7 @@ class PoincareBall(Manifold):
 
     def dist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
         dim = check_dims_with_broadcasting(x, y)
-        return dist(x=x.tensor, y=y.tensor, c=self.c, dim=dim)
+        return dist(x=x.tensor, y=y.tensor, c=self.c(), dim=dim)
 
     def inner(
         self, u: TangentTensor, v: TangentTensor, keepdim: bool = False, safe_mode: bool = True
@@ -107,12 +112,12 @@ class PoincareBall(Manifold):
             check_tangent_tensor_positions(u, v)
 
         return inner(
-            x=u.manifold_points.tensor, u=u.tensor, v=v.tensor, c=self.c, dim=dim, keepdim=keepdim
+            x=u.manifold_points.tensor, u=u.tensor, v=v.tensor, c=self.c(), dim=dim, keepdim=keepdim
         )
 
     def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> TangentTensor:
         dim = check_dims_with_broadcasting(x, u)
-        tangent_vectors = euc_to_tangent(x=x.tensor, u=u.tensor, c=self.c, dim=x.man_dim)
+        tangent_vectors = euc_to_tangent(x=x.tensor, u=u.tensor, c=self.c(), dim=x.man_dim)
         return TangentTensor(
             data=tangent_vectors,
             manifold_points=x,
@@ -127,7 +132,7 @@ class PoincareBall(Manifold):
                 f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
                 f"{z.man_dim}, respectively"
             )
-        return poincare_hyperplane_dists(x=x.tensor, z=z.tensor, r=r, c=self.c)
+        return poincare_hyperplane_dists(x=x.tensor, z=z.tensor, r=r, c=self.c())
 
     def fully_connected(
         self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
@@ -138,7 +143,7 @@ class PoincareBall(Manifold):
                 f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
                 f"{z.man_dim}, respectively"
             )
-        new_tensor = poincare_fully_connected(x=x.tensor, z=z.tensor, bias=bias, c=self.c)
+        new_tensor = poincare_fully_connected(x=x.tensor, z=z.tensor, bias=bias, c=self.c())
         new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
         return self.project(new_tensor)
 
@@ -152,7 +157,7 @@ class PoincareBall(Manifold):
             batch_dim = [batch_dim]
         output_man_dim = x.man_dim - sum(bd < x.man_dim for bd in batch_dim)
         new_tensor = frechet_mean(
-            x=x.tensor, c=self.c, vec_dim=x.man_dim, batch_dim=batch_dim, keepdim=keepdim
+            x=x.tensor, c=self.c(), vec_dim=x.man_dim, batch_dim=batch_dim, keepdim=keepdim
         )
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=output_man_dim)
 
@@ -177,7 +182,7 @@ class PoincareBall(Manifold):
         new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
 
         new_tensor = midpoint(
-            x=x.tensor, c=self.c, man_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
+            x=x.tensor, c=self.c(), man_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
         )
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=new_man_dim)
 
@@ -194,7 +199,7 @@ class PoincareBall(Manifold):
         # TODO: Check if x and mu have compatible man_dims
         return frechet_variance(
             x=x.tensor,
-            c=self.c,
+            c=self.c(),
             mu=mu,
             vec_dim=x.man_dim,
             batch_dim=batch_dim,

@@ -15,6 +15,7 @@ dev = [
     "black",
     "isort",
     "pytest",
+    "pytest_mock",
 ]
 
 [tool.black]
