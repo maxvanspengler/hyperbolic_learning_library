@@ -1,4 +1,9 @@
 __pycache__/
 *.egg-info/
-tests/data
 .vscode
+build
+data
+docs/build
+docs/source/_autosummary
+docs/source/tutorials
+tests/data
