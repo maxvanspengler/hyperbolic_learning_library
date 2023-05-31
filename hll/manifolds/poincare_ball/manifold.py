@@ -137,14 +137,15 @@ class PoincareBall(Manifold):
     def fully_connected(
         self, x: ManifoldTensor, z: ManifoldTensor, bias: Optional[Tensor]
     ) -> ManifoldTensor:
-        if x.man_dim != 1 or z.man_dim != 0:
+        if z.man_dim != 0:
             raise ValueError(
-                f"Expected the manifold dimension of the inputs to be 1 and the manifold "
-                f"dimension of the hyperplane orientations to be 0, but got {x.man_dim} and "
-                f"{z.man_dim}, respectively"
+                f"Expected the manifold dimension of the hyperplane orientations to be 0, but got "
+                f"{z.man_dim} instead"
             )
-        new_tensor = poincare_fully_connected(x=x.tensor, z=z.tensor, bias=bias, c=self.c())
-        new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=-1)
+        new_tensor = poincare_fully_connected(
+            x=x.tensor, z=z.tensor, bias=bias, c=self.c(), dim=x.man_dim
+        )
+        new_tensor = ManifoldTensor(data=new_tensor, manifold=self, man_dim=x.man_dim)
         return self.project(new_tensor)
 
     def frechet_mean(
