@@ -89,11 +89,11 @@ class ManifoldTensor:
 
     def transpose(self, dim0, dim1):
         if self.man_dim == dim0:
-            self.man_dim = dim1
+            new_man_dim = dim1
         elif self.man_dim == dim1:
-            self.man_dim = dim0
-        self.tensor = self.tensor.transpose(dim0, dim1)
-        return self
+            new_man_dim = dim0
+        new_tensor = self.tensor.transpose(dim0, dim1)
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
 
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
