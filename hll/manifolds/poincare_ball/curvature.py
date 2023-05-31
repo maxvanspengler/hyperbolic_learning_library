@@ -18,6 +18,8 @@ class Curvature(Module):
             Function applied to the curvature value in order to constrain the
             curvature of the manifold. By default uses softplus to guarantee
             positive curvature.
+        requires_grad:
+            If the curvature requires gradient. False by default.
 
     """
 
@@ -25,9 +27,13 @@ class Curvature(Module):
         self,
         value: float = 1.0,
         constraining_strategy: Callable[[Tensor], Tensor] = softplus,
+        requires_grad: bool = False,
     ):
         super(Curvature, self).__init__()
-        self.value = Parameter(as_tensor(value, dtype=torch.float32))
+        self.value = Parameter(
+            data=as_tensor(value, dtype=torch.float32),
+            requires_grad=requires_grad,
+        )
         self.constraining_strategy = constraining_strategy
 
     def forward(self) -> Tensor:

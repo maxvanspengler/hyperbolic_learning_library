@@ -68,7 +68,7 @@ from hll.tensors import ManifoldTensor
 
 # Setting the curvature of the ball to 0.1 and making it a learnable parameter
 # is usually suboptimal but can make training smoother.
-manifold = PoincareBall(c=Curvature())
+manifold = PoincareBall(c=Curvature(0.1))
 
 
 def get_manifold_tensor(tensor: torch.Tensor, dim: int) -> ManifoldTensor:
