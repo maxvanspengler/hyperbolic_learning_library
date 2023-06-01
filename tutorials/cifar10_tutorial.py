@@ -30,9 +30,9 @@ We will do the following steps in order:
 
 from hll.manifolds import Curvature, PoincareBall
 
-# Setting the curvature of the ball to 0.1 and making it a learnable parameter
-# is usually suboptimal but can make training smoother.
-manifold = PoincareBall(c=Curvature(0.1, requires_grad=True))
+# Making the curvature a learnable parameter is usually suboptimal but can
+# make training smoother.
+manifold = PoincareBall(c=Curvature(requires_grad=True))
 
 
 ########################################################################
