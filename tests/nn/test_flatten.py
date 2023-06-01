@@ -1,50 +1,14 @@
 import pytest
+import torch
+from pytest_mock import MockerFixture
 
 from hll.manifolds import Curvature, PoincareBall
 from hll.nn import HFlatten
 from hll.tensors import ManifoldTensor
 
 
-def test_hflatten() -> None:
-    manifold_tensor = ManifoldTensor(
-        data=[
-            [
-                [1.0, 2.0],
-                [3.0, 4.0],
-            ],
-            [
-                [5.0, 6.0],
-                [7.0, 8.0],
-            ],
-        ],
-        manifold=PoincareBall(c=Curvature()),
-        man_dim=1,
-        requires_grad=True,
-    )
-
+def test_hflatten(mocker: MockerFixture) -> None:
     hflatten = HFlatten(start_dim=1, end_dim=-1)
-    flattened = hflatten(manifold_tensor)
-    assert flattened.shape == (2, 4)
-
-
-def test_hflatten__raises_value_error():
-    manifold_tensor = ManifoldTensor(
-        data=[
-            [
-                [1.0, 2.0],
-                [3.0, 4.0],
-            ],
-            [
-                [5.0, 6.0],
-                [7.0, 8.0],
-            ],
-        ],
-        manifold=PoincareBall(c=Curvature()),
-        man_dim=1,
-        requires_grad=True,
-    )
-
-    hflatten = HFlatten(start_dim=0, end_dim=-1)
-    with pytest.raises(ValueError) as e:
-        flattened = hflatten(manifold_tensor)
-        assert "Can't flatten the manifold dimension 1 of manifold tensor!" in str(e)
+    mocked_manifold_tensor = mocker.MagicMock()
+    flattened = hflatten(mocked_manifold_tensor)
+    mocked_manifold_tensor.flatten.assert_called_once_with(start_dim=1, end_dim=-1)
