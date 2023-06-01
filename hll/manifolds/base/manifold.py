@@ -88,3 +88,7 @@ class Manifold(Module, ABC):
     @abstractmethod
     def reset_parameters(self, weight: ManifoldParameter, bias: Parameter) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def flatten(self, x: ManifoldTensor, start_dim: int = 1, end_dim: int = -1) -> ManifoldTensor:
+        raise NotImplementedError
