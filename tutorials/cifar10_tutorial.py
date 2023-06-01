@@ -13,17 +13,31 @@ Training a Hyperbolic Image Classifier
 
 We will do the following steps in order:
 
-1. Load and normalize the CIFAR10 training and test datasets using ``torchvision``
-2. Define a hyperbolic manifold
+1. Define a hyperbolic manifold
+2. Load and normalize the CIFAR10 training and test datasets using ``torchvision``
 3. Define a hyperbolic Convolutional Neural Network
 4. Define a loss function and optimizer
 5. Train the network on the training data
 6. Test the network on the test data
 
-1. Load and normalize CIFAR10
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+########################################################################
+# 1. Define a hyperbolic manifold
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# We use the Poincaré ball model for the purposes of this tutorial.
 
 """
+
+from hll.manifolds import Curvature, PoincareBall
+
+# Setting the curvature of the ball to 0.1 and making it a learnable parameter
+# is usually suboptimal but can make training smoother.
+manifold = PoincareBall(c=Curvature(0.1, requires_grad=True))
+
+
+########################################################################
+# 2. Load and normalize CIFAR10
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch
 import torchvision
@@ -35,8 +49,12 @@ import torchvision.transforms as transforms
 #     the num_worker of torch.utils.data.DataLoader() to 0.
 
 transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    [
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ]
 )
+
 
 batch_size = 4
 
@@ -58,26 +76,10 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 
 ########################################################################
-# 2. Define a hyperbolic manifold
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# We use the Poincaré ball model for the purposes of this tutorial.
-
-
-from hll.manifolds import Curvature, PoincareBall
-from hll.tensors import ManifoldTensor
-
-# Setting the curvature of the ball to 0.1 and making it a learnable parameter
-# is usually suboptimal but can make training smoother.
-manifold = PoincareBall(c=Curvature(0.1))
-
-
-########################################################################
 # 3. Define a hyperbolic Convolutional Neural Network
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's rebuild the convolutional neural network from torchvision's tutorial
-# using hyperbolic modules. We add an extra layer at the very beginning to map
-# our input images to hyperbolic space!
-
+# using hyperbolic modules.
 
 from torch import nn
 
@@ -87,11 +89,6 @@ from hll import nn as hnn
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
-
-        # apply the exponential map to the inputs
-        self.expmap = hnn.ExpMap0(manifold=manifold, man_dim=1)
-
-        # rebuild the convolutional neural network from torchvision's tutorial
         self.conv1 = hnn.HConvolution2d(
             in_channels=3, out_channels=6, kernel_size=5, manifold=manifold
         )
@@ -105,7 +102,6 @@ class Net(nn.Module):
         self.relu = hnn.HReLU(manifold=manifold)
 
     def forward(self, x):
-        x = self.expmap(x)
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
         x = x.flatten(start_dim=1)
@@ -128,7 +124,7 @@ import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
-from hypdl.optim import RiemannianAdam
+from hll.optim import RiemannianAdam
 
 optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
@@ -136,10 +132,11 @@ optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 ########################################################################
 # 5. Train the network
 # ^^^^^^^^^^^^^^^^^^^^
-#
 # This is when things start to get interesting.
 # We simply have to loop over our data iterator, project the inputs onto the
 # manifold, and feed them to the network and optimize.
+
+from hll.tensors import TangentTensor
 
 for epoch in range(2):  # loop over the dataset multiple times
     running_loss = 0.0
@@ -147,11 +144,15 @@ for epoch in range(2):  # loop over the dataset multiple times
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
 
+        # move the inputs to the manifold
+        tangents = TangentTensor(data=inputs, man_dim=1, manifold=manifold)
+        manifold_inputs = manifold.expmap(tangents)
+
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = net(inputs)
+        outputs = net(manifold_inputs)
         loss = criterion(outputs.tensor, labels)
         loss.backward()
         optimizer.step()
@@ -191,8 +192,13 @@ total = 0
 with torch.no_grad():
     for data in testloader:
         images, labels = data
+
+        # move the images to the manifold
+        tangents = TangentTensor(data=images, man_dim=1, manifold=manifold)
+        manifold_images = manifold.expmap(tangents)
+
         # calculate outputs by running images through the network
-        outputs = net(images)
+        outputs = net(manifold_images)
         # the class with the highest energy is what we choose as prediction
         _, predicted = torch.max(outputs.tensor, 1)
         total += labels.size(0)
@@ -217,7 +223,12 @@ total_pred = {classname: 0 for classname in classes}
 with torch.no_grad():
     for data in testloader:
         images, labels = data
-        outputs = net(images)
+
+        # move the images to the manifold
+        tangents = TangentTensor(data=images, man_dim=1, manifold=manifold)
+        manifold_images = manifold.expmap(tangents)
+
+        outputs = net(manifold_images)
         _, predictions = torch.max(outputs.tensor, 1)
         # collect the correct predictions for each class
         for label, prediction in zip(labels, predictions):
