@@ -5,4 +5,4 @@ from .modules.container import TangentSequential
 from .modules.convolution import HConvolution2d
 from .modules.flatten import HFlatten
 from .modules.linear import HLinear
-from .modules.pooling import HMaxPool2d
+from .modules.pooling import HAvgPool2d, HMaxPool2d
