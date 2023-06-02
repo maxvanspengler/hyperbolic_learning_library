@@ -45,6 +45,7 @@ class FrechetMean(torch.autograd.Function):
         ctx.save_for_backward(x, mean, c)
         ctx.vec_dim = vec_dim
         ctx.batch_dim = batch_dim
+        ctx.output_vec_dim = output_vec_dim
         ctx.batch_start_id = batch_start_id
         ctx.original_dims = original_dims
 
@@ -64,6 +65,11 @@ class FrechetMean(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         x, mean, c = ctx.saved_tensors
+        # Reshift dims in grad to match the dims of the mean that was stored in ctx
+        grad_output = grad_output.movedim(
+            source=list(range(ctx.output_vec_dim - mean.dim(), 0)),
+            destination=[-1] + list(range(ctx.output_vec_dim - mean.dim(), -1))
+        )
         dx, dc = frechet_ball_backward(X=x, y=mean, grad=grad_output, K=c)
         vec_dim = ctx.vec_dim
         batch_dim = ctx.batch_dim
