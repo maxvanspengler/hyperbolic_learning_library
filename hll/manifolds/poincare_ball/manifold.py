@@ -298,17 +298,13 @@ class PoincareBall(Manifold):
             n = n_i * functools.reduce(lambda a, b: a * b, dimensions_to_flatten)
             beta_n = beta_func(n / 2, 0.5)
             beta_n_i = beta_func(n_i / 2, 0.5)
-            # Transpose tensor such that the manifold dim is the last dimension
-            # to be flattened. This ensures that points on the manifold are
-            # contiguous after flattening.
-            tangents.tensor = tangents.tensor.transpose(x.man_dim, end_dim)
             # Flatten the tensor and rescale.
             tangents.tensor = torch.flatten(
                 input=tangents.tensor,
                 start_dim=start_dim,
                 end_dim=end_dim,
             )
-            tangents.tensor *= beta_n / beta_n_i
+            tangents.tensor = tangents.tensor * beta_n / beta_n_i
             # Set the new manifold dimension
             tangents.man_dim = start_dim
             # Apply exponential map at the origin.
