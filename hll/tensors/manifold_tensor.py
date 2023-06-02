@@ -1,19 +1,43 @@
+from __future__ import annotations
+
 from typing import Any, Optional
 
+import torch
 from torch import Tensor, tensor
 
 from hll.manifolds import Manifold
 
 
 class ManifoldTensor:
-    def __init__(
-        self, data, manifold: Manifold, man_dim: int = -1, requires_grad: bool = False
-    ) -> None:
-        if isinstance(data, Tensor):
-            self.tensor = data
-        else:
-            self.tensor = tensor(data, requires_grad=requires_grad)
+    """Represents a tensor on a manifold.
 
+    Attributes:
+        tensor:
+            Torch tensor of points on the manifold.
+        manifold:
+            Manifold instance.
+        man_dim:
+            Dimension along which points are on the manifold.
+
+    """
+
+    def __init__(
+        self, data: Tensor, manifold: Manifold, man_dim: int = -1, requires_grad: bool = False
+    ) -> None:
+        """Creates an instance of ManifoldTensor.
+
+        Args:
+            data:
+                Torch tensor of points on the manifold.
+            manifold:
+                Manifold instance.
+            man_dim:
+                Dimension along which points are on the manifold. -1 by default.
+
+        TODO(Philipp, 05/23): Let's get rid of requires_grad if possible.
+
+        """
+        self.tensor = data if isinstance(data, Tensor) else tensor(data, requires_grad=True)
         self.manifold = manifold
 
         if man_dim >= 0:
@@ -25,25 +49,6 @@ class ManifoldTensor:
                     f"Dimension out of range (expected to be in range of "
                     f"{[-self.tensor.dim() - 1, self.tensor.dim()]}, but got {man_dim})"
                 )
-
-    def __getattr__(self, name: str) -> Any:
-        # TODO: go through https://pytorch.org/docs/stable/tensors.html and check which methods
-        # are relevant.
-        if hasattr(self.tensor, name):
-            torch_attribute = getattr(self.tensor, name)
-
-            if callable(torch_attribute):
-                raise AttributeError(
-                    f"Attempting to apply the torch.Tensor method {name} on a ManifoldTensor."
-                    f"Use ManifoldTensor.tensor.{name} instead."
-                )
-            else:
-                return torch_attribute
-
-        else:
-            raise AttributeError(
-                f"Neither {self.__class__.__name__}, nor torch.Tensor has attribute {name}"
-            )
 
     def __getitem__(self, *args):
         # TODO: write a check that sees if the man_dim remains untouched.
@@ -60,34 +65,69 @@ class ManifoldTensor:
         new_tensor = self.tensor.__getitem__(*args)
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
-    def project(self):
-        return self.manifold.project(x=self)
-
-    def cuda(self, device=None):
-        new_tensor = self.tensor.cuda(device)
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
-
-    def cpu(self):
+    def cpu(self) -> ManifoldTensor:
+        """Returns a copy of this object with self.tensor in CPU memory."""
         new_tensor = self.tensor.cpu()
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
-    def to(self, *args, **kwargs):
-        new_tensor = self.tensor.to(*args, **kwargs)
+    def cuda(self, device=None) -> ManifoldTensor:
+        """Returns a copy of this object with self.tensor in CUDA memory."""
+        new_tensor = self.tensor.cuda(device)
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
+    def dim(self) -> int:
+        """Returns the number of dimensions of self.tensor."""
+        return self.tensor.dim()
+
+    def detach(self) -> ManifoldTensor:
+        """Returns a new Tensor, detached from the current graph."""
+        detached = self.tensor.detach()
+        return ManifoldTensor(data=detached, manifold=self.manifold, man_dim=self.man_dim)
+
+    def flatten(self, start_dim: int = 0, end_dim: int = -1) -> ManifoldTensor:
+        """Flattens tensor by reshaping it. If start_dim or end_dim are passed,
+        only dimensions starting with start_dim and ending with end_dim are flattend.
+
+        """
+        return self.manifold.flatten(self, start_dim=start_dim, end_dim=end_dim)
+
+    @property
+    def is_cpu(self):
+        return self.tensor.is_cpu
+
+    @property
+    def is_cuda(self):
+        return self.tensor.is_cuda
+
+    def is_floating_point(self) -> bool:
+        """Returns true if the tensor is of dtype float."""
+        return self.tensor.is_floating_point()
+
+    def project(self) -> ManifoldTensor:
+        """Projects the tensor to the manifold."""
+        return self.manifold.project(x=self)
+
+    @property
+    def shape(self):
+        """Alias for size()."""
+        return self.size()
+
     def size(self, dim: Optional[int] = None):
+        """Returns the size of self.tensor."""
         if dim is None:
             return self.tensor.size()
         else:
             return self.tensor.size(dim)
 
-    def dim(self):
-        return self.tensor.dim()
+    def to(self, *args, **kwargs) -> ManifoldTensor:
+        """Returns a new tensor with the specified device and (optional) dtype."""
+        new_tensor = self.tensor.to(*args, **kwargs)
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
 
-    def is_floating_point(self):
-        return self.tensor.is_floating_point()
-
-    def transpose(self, dim0, dim1):
+    def transpose(self, dim0: int, dim1: int) -> ManifoldTensor:
+        """Returns a transposed version of the manifold tensor. The given dimensions
+        dim0 and dim1 are swapped.
+        """
         if self.man_dim == dim0:
             new_man_dim = dim1
         elif self.man_dim == dim1:
@@ -99,6 +139,6 @@ class ManifoldTensor:
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         # TODO: check if there are torch functions that should be allowed
         raise TypeError(
-            f"Attempting to apply the torch function {func} on a ManifoldTensor."
+            f"Attempting to apply the torch function {func} on a ManifoldTensor. "
             f"Use ManifoldTensor.tensor as argument to {func} instead."
         )

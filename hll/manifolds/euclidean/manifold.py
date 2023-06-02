@@ -1,6 +1,7 @@
 from math import sqrt
 from typing import Optional, Union
 
+import torch
 from torch import Tensor, broadcast_shapes, empty, matmul, var
 from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
@@ -190,3 +191,32 @@ class Euclidean(Manifold):
             stride=stride,
         )
         return ManifoldTensor(data=new_tensor, manifold=input.manifold, man_dim=1)
+
+    def flatten(self, x: ManifoldTensor, start_dim: int = 1, end_dim: int = -1) -> ManifoldTensor:
+        """Flattens a manifold tensor by reshaping it. If start_dim or end_dim are passed,
+        only dimensions starting with start_dim and ending with end_dim are flattend.
+
+        Updates the manifold dimension if necessary.
+
+        """
+        start_dim = x.dim() + start_dim if start_dim < 0 else start_dim
+        end_dim = x.dim() + end_dim if end_dim < 0 else end_dim
+
+        # Get the range of dimensions to flatten.
+        dimensions_to_flatten = x.shape[start_dim + 1 : end_dim + 1]
+
+        # Get the new manifold dimension.
+        if start_dim <= x.man_dim and end_dim >= x.man_dim:
+            man_dim = start_dim
+        elif end_dim <= x.man_dim:
+            man_dim = x.man_dim - len(dimensions_to_flatten)
+        else:
+            man_dim = x.man_dim
+
+        # Flatten the tensor and return the new instance.
+        flattened = torch.flatten(
+            input=x.tensor,
+            start_dim=start_dim,
+            end_dim=end_dim,
+        )
+        return ManifoldTensor(data=flattened, manifold=x.manifold, man_dim=man_dim)

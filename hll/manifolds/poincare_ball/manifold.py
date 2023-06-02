@@ -1,5 +1,7 @@
+import functools
 from typing import Optional, Union
 
+import torch
 from torch import Tensor, empty, eye, no_grad
 from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
@@ -49,7 +51,7 @@ class PoincareBall(Manifold):
         """Initializes an instance of PoincareBall manifold.
 
         Examples:
-            >>> from hypdl.manifolds import PoincareBall, Curvature
+            >>> from hll.manifolds import PoincareBall, Curvature
             >>> curvature = Curvature(value=1.0)
             >>> manifold = Manifold(c=curvature)
 
@@ -266,5 +268,52 @@ class PoincareBall(Manifold):
             padding=padding,
             stride=stride,
         )
+
         new_tensor = TangentTensor(data=new_tensor, manifold_points=None, manifold=self, man_dim=1)
         return self.expmap(new_tensor)
+
+    def flatten(self, x: ManifoldTensor, start_dim: int = 1, end_dim: int = -1) -> ManifoldTensor:
+        """Flattens a manifold tensor by reshaping it. If start_dim or end_dim are passed,
+        only dimensions starting with start_dim and ending with end_dim are flattend.
+
+        If the manifold dimension of the input tensor is among the dimensions which
+        are flattened, applies beta-concatenation to the points on the manifold.
+        Otherwise simply flattens the tensor using torch.flatten.
+
+        Updates the manifold dimension if necessary.
+
+        """
+        start_dim = x.dim() + start_dim if start_dim < 0 else start_dim
+        end_dim = x.dim() + end_dim if end_dim < 0 else end_dim
+
+        # Get the range of dimensions to flatten.
+        dimensions_to_flatten = x.shape[start_dim + 1 : end_dim + 1]
+
+        if start_dim <= x.man_dim and end_dim >= x.man_dim:
+            # Use beta concatenation to flatten the manifold dimension of the tensor.
+            #
+            # Start by applying logmap at the origin and computing the betas.
+            tangents = self.logmap(None, x)
+            n_i = x.shape[x.man_dim]
+            n = n_i * functools.reduce(lambda a, b: a * b, dimensions_to_flatten)
+            beta_n = beta_func(n / 2, 0.5)
+            beta_n_i = beta_func(n_i / 2, 0.5)
+            # Flatten the tensor and rescale.
+            tangents.tensor = torch.flatten(
+                input=tangents.tensor,
+                start_dim=start_dim,
+                end_dim=end_dim,
+            )
+            tangents.tensor = tangents.tensor * beta_n / beta_n_i
+            # Set the new manifold dimension
+            tangents.man_dim = start_dim
+            # Apply exponential map at the origin.
+            return self.expmap(tangents)
+        else:
+            flattened = torch.flatten(
+                input=x.tensor,
+                start_dim=start_dim,
+                end_dim=end_dim,
+            )
+            man_dim = x.man_dim if end_dim > x.man_dim else x.man_dim - len(dimensions_to_flatten)
+            return ManifoldTensor(data=flattened, manifold=x.manifold, man_dim=man_dim)

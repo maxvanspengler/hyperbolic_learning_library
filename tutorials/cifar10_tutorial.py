@@ -13,17 +13,31 @@ Training a Hyperbolic Image Classifier
 
 We will do the following steps in order:
 
-1. Load and normalize the CIFAR10 training and test datasets using ``torchvision``
-2. Define a hyperbolic manifold
+1. Define a hyperbolic manifold
+2. Load and normalize the CIFAR10 training and test datasets using ``torchvision``
 3. Define a hyperbolic Convolutional Neural Network
 4. Define a loss function and optimizer
 5. Train the network on the training data
 6. Test the network on the test data
 
-1. Load and normalize CIFAR10
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+########################################################################
+# 1. Define a hyperbolic manifold
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# We use the Poincaré ball model for the purposes of this tutorial.
 
 """
+
+from hll.manifolds import Curvature, PoincareBall
+
+# Making the curvature a learnable parameter is usually suboptimal but can
+# make training smoother.
+manifold = PoincareBall(c=Curvature(requires_grad=True))
+
+
+########################################################################
+# 2. Load and normalize CIFAR10
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch
 import torchvision
@@ -35,8 +49,12 @@ import torchvision.transforms as transforms
 #     the num_worker of torch.utils.data.DataLoader() to 0.
 
 transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    [
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ]
 )
+
 
 batch_size = 4
 
@@ -58,37 +76,16 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 
 ########################################################################
-# 2. Define a hyperbolic manifold
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# We use the Poincaré ball model for the purposes of this tutorial.
-
-
-from hll.manifolds import Curvature, PoincareBall
-from hll.tensors import ManifoldTensor
-
-# Setting the curvature of the ball to 0.1 and making it a learnable parameter
-# is usually suboptimal but can make training smoother.
-manifold = PoincareBall(c=Curvature(0.1))
-
-
-def get_manifold_tensor(tensor: torch.Tensor, dim: int) -> ManifoldTensor:
-    # TODO: Can expmap0 return a ManifoldTensor directly?
-    return ManifoldTensor(data=manifold.expmap0(v=tensor, dim=dim), manifold=manifold, man_dim=dim)
-
-
-########################################################################
 # 3. Define a hyperbolic Convolutional Neural Network
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's rebuild the convolutional neural network from torchvision's tutorial
 # using hyperbolic modules.
-
 
 from torch import nn
 
 from hll import nn as hnn
 
 
-# TODO: Add base class hnn.Module?
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -107,7 +104,7 @@ class Net(nn.Module):
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
+        x = x.flatten(start_dim=1)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
@@ -119,38 +116,44 @@ net = Net()
 ########################################################################
 # 4. Define a Loss function and optimizer
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# Let's use a Classification Cross-Entropy loss and Adam optimizer. Adam is
-# preferred because hyperbolic linear layers can sometimes have training
+# Let's use a Classification Cross-Entropy loss and RiemannianAdam optimizer.
+# Adam is preferred because hyperbolic linear layers can sometimes have training
 # difficulties early on due to poor initialization.
 
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
-optimizer = optim.Adam(net.parameters())
+from hll.optim import RiemannianAdam
+
+optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
 
 ########################################################################
 # 5. Train the network
 # ^^^^^^^^^^^^^^^^^^^^
-#
 # This is when things start to get interesting.
 # We simply have to loop over our data iterator, project the inputs onto the
 # manifold, and feed them to the network and optimize.
+
+from hll.tensors import TangentTensor
 
 for epoch in range(2):  # loop over the dataset multiple times
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
-        manifold_inputs = get_manifold_tensor(tensor=inputs, dim=1)
+
+        # move the inputs to the manifold
+        tangents = TangentTensor(data=inputs, man_dim=1, manifold=manifold)
+        manifold_inputs = manifold.expmap(tangents)
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
         outputs = net(manifold_inputs)
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs.tensor, labels)
         loss.backward()
         optimizer.step()
 
@@ -189,11 +192,14 @@ total = 0
 with torch.no_grad():
     for data in testloader:
         images, labels = data
-        manifold_images = get_manifold_tensor(tensor=images, dim=1)
+
+        # move the images to the manifold
+        tangents = TangentTensor(data=images, man_dim=1, manifold=manifold)
+        manifold_images = manifold.expmap(tangents)
+
         # calculate outputs by running images through the network
         outputs = net(manifold_images)
         # the class with the highest energy is what we choose as prediction
-        # TODO: Make torch.max and similar functions work on ManifoldTensor
         _, predicted = torch.max(outputs.tensor, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
@@ -217,9 +223,12 @@ total_pred = {classname: 0 for classname in classes}
 with torch.no_grad():
     for data in testloader:
         images, labels = data
-        manifold_images = get_manifold_tensor(tensor=images, dim=1)
+
+        # move the images to the manifold
+        tangents = TangentTensor(data=images, man_dim=1, manifold=manifold)
+        manifold_images = manifold.expmap(tangents)
+
         outputs = net(manifold_images)
-        # TODO: Make torch.max and similar functions work on ManifoldTensor
         _, predictions = torch.max(outputs.tensor, 1)
         # collect the correct predictions for each class
         for label, prediction in zip(labels, predictions):
