@@ -1,5 +1,6 @@
 __pycache__/
 *.egg-info/
+.pytest_cache
 .vscode
 build
 data
@@ -7,3 +8,4 @@ docs/build
 docs/source/_autosummary
 docs/source/tutorials
 tests/data
+
