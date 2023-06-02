@@ -61,7 +61,7 @@ class PoincareBall(Manifold):
 
     def mobius_add(self, x: ManifoldTensor, y: ManifoldTensor) -> ManifoldTensor:
         dim = check_dims_with_broadcasting(x, y)
-        new_tensor = mobius_add(x=x, y=y, c=self.c(), dim=dim)
+        new_tensor = mobius_add(x=x.tensor, y=y.tensor, c=self.c(), dim=dim)
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=dim)
 
     def project(self, x: ManifoldTensor, eps: float = -1.0) -> ManifoldTensor:
@@ -247,7 +247,6 @@ class PoincareBall(Manifold):
         padding: _size_2_t = 0,
         stride: _size_2_t = 1,
     ) -> ManifoldTensor:
-        # TODO: doesn't work with tuple dilation, padding, and stride. Should add this.
         # TODO: may have to cache some of this stuff for efficiency.
         in_channels = input.size(1)
         if len(kernel_size) == 2:
