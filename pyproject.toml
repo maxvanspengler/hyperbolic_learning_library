@@ -17,7 +17,6 @@ dev = [
     "pytest",
     "pytest_mock",
     "sphinx",
-    "sphinx-apidoc",
     "sphinx-gallery",
 ]
 
