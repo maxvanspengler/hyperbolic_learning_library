@@ -18,7 +18,7 @@ class HBatchNorm(Module):
         self,
         features: int,
         manifold: Manifold,
-        use_midpoint: bool = True,
+        use_midpoint: bool = False,
     ) -> None:
         super(HBatchNorm, self).__init__()
         self.features = features
@@ -66,7 +66,7 @@ class HBatchNorm2d(Module):
         self,
         features: int,
         manifold: Manifold,
-        use_midpoint: bool = True,
+        use_midpoint: bool = False,
     ) -> None:
         super(HBatchNorm2d, self).__init__()
         self.features = features
