@@ -12,7 +12,7 @@ from hll.utils.layer_utils import (
 )
 
 
-class HAvgPool2d:
+class HAvgPool2d(Module):
     def __init__(
         self,
         kernel_size: _size_2_t,
@@ -21,6 +21,7 @@ class HAvgPool2d:
         padding: _size_2_t = 0,
         use_midpoint: bool = False,
     ):
+        super().__init__()
         self.kernel_size = (
             kernel_size
             if isinstance(kernel_size, tuple) and len(kernel_size) == 2
@@ -50,7 +51,10 @@ class HAvgPool2d:
             stride=self.stride,
         )
         per_kernel_view = unfolded_input.tensor.view(
-            batch_size, channels, self.kernel_size[0] * self.kernel_size[1], x.size(-1)
+            batch_size,
+            channels,
+            self.kernel_size[0] * self.kernel_size[1],
+            unfolded_input.size(-1),
         )
 
         x = ManifoldTensor(
