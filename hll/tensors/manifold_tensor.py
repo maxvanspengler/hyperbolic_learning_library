@@ -118,6 +118,20 @@ class ManifoldTensor:
             return self.tensor.size()
         else:
             return self.tensor.size(dim)
+        
+    def squeeze(self, dim=None):
+        """Returns a squeezed version of the manifold tensor."""
+        if dim == self.man_dim or (dim is None and self.size(self.man_dim) == 1):
+            raise ValueError("Attempting to squeeze the manifold dimension")
+
+        if dim is None:
+            new_tensor = self.tensor.squeeze()
+            new_man_dim = self.man_dim - sum(self.size(d) == 1 for d in range(self.man_dim))
+        else:
+            new_tensor = self.tensor.squeeze(dim=dim)
+            new_man_dim = self.man_dim - (1 if dim < self.man_dim else 0)
+        
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
 
     def to(self, *args, **kwargs) -> ManifoldTensor:
         """Returns a new tensor with the specified device and (optional) dtype."""
