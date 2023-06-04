@@ -28,7 +28,6 @@ We will do the following steps in order:
 # We use the Poincaré ball model for the purposes of this tutorial.
 
 
-
 from hll.manifolds import Curvature, PoincareBall
 
 # Making the curvature a learnable parameter is usually suboptimal but can
