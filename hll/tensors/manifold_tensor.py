@@ -50,12 +50,14 @@ class ManifoldTensor:
                 )
 
     def __getitem__(self, *args):
+        # Catch some undefined behaviour by checking if args is a single element
         if len(args) != 1:
             raise ValueError(
                 f"No support for slicing with these arguments. If you think there should be "
                 f"support, please consider opening a issue on GitHub describing your case."
             )
 
+        # Deal with the case where the argument is a long tensor
         if isinstance(args[0], Tensor) and args[0].dtype == long:
             if self.man_dim == 0:
                 raise ValueError(
@@ -66,6 +68,7 @@ class ManifoldTensor:
             new_man_dim = self.man_dim + args[0].dim() - 1
             return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
 
+        # Convert the args to a list and replace Ellipsis by the correct number of full slices
         arg_list = list(args[0])
         if Ellipsis in arg_list:
             ell_id = arg_list.index(Ellipsis)
@@ -76,22 +79,28 @@ class ManifoldTensor:
         output_man_dim = self.man_dim
         counter = self.man_dim + 1
 
+        # Compute output manifold dimension
         for arg in arg_list:
+            # None values add a dimension
             if arg is None:
                 output_man_dim += 1
                 continue
+            # Integers remove a dimension
             elif isinstance(arg, int):
                 output_man_dim -= 1
                 counter -= 1
+            # Other values leave the dimension intact
             else:
                 counter -= 1
 
+            # When the counter hits 0 and the next term isn't None, we hit the man_dim term
             if counter == 0:
                 if isinstance(arg, int) or isinstance(arg, list):
                     raise ValueError(
                         f"Attempting to slice into the manifold dimension, but this is not a "
                         "valid operation"
                     )
+                # If we get past the man_dim term, the output man_dim doesn't change anymore
                 break
 
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=output_man_dim)
