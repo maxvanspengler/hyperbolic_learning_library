@@ -1,4 +1,3 @@
-import pytest
 import torch
 
 from hll.manifolds.poincare_ball import Curvature, PoincareBall

@@ -1,4 +1,3 @@
-import pytest
 from pytest_mock import MockerFixture
 
 from hll.nn import HFlatten
