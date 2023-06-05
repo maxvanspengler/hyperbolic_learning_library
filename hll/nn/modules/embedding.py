@@ -34,7 +34,7 @@ class HEmbedding(Module):
                 manifold=self.manifold,
                 man_dim=-1,
             )
-            self.weight.tensor = self.manifold.expmap(new_weight).tensor
+            self.weight.copy_(self.manifold.expmap(new_weight).tensor)
 
     def forward(self, input: Tensor) -> ManifoldTensor:
         return self.weight[input]

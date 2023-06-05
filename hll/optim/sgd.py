@@ -4,7 +4,8 @@ from typing import Union
 from torch import no_grad
 from torch.optim import Optimizer
 
-from hll.manifolds import Euclidean, Manifold
+from hll.manifolds import Manifold
+from hll.manifolds.euclidean import Euclidean
 from hll.tensors import ManifoldParameter, ManifoldTensor
 
 
@@ -91,7 +92,8 @@ class RiemannianSGD(Optimizer):
                             # momentum_buffer.tensor.copy_(new_momentum_buffer.tensor)
                             param.tensor.copy_(new_param.tensor)
                         else:
-                            new_param = manifold.expmap(x=param, v=-lr * grad)
+                            # grad.tensor = -lr * grad.tensor
+                            # new_param = manifold.expmap(v=grad)
                             param.tensor.copy_(new_param.tensor)
 
                     else:

@@ -1,7 +1,6 @@
 from pytest_mock import MockerFixture
-from torch.nn.functional import softplus
 
-from hll.manifolds import Curvature
+from hll.manifolds.poincare_ball import Curvature
 
 
 def test_curvature(mocker: MockerFixture) -> None:

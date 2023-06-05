@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
-import torch
-from torch import Tensor, tensor
+from torch import Tensor, long, tensor
 
 from hll.manifolds import Manifold
 
@@ -51,19 +50,60 @@ class ManifoldTensor:
                 )
 
     def __getitem__(self, *args):
-        # TODO: write a check that sees if the man_dim remains untouched.
-        # man_dim_num = self.size(self.man_dim)
+        # Catch some undefined behaviour by checking if args is a single element
+        if len(args) != 1:
+            raise ValueError(
+                f"No support for slicing with these arguments. If you think there should be "
+                f"support, please consider opening a issue on GitHub describing your case."
+            )
 
-        # slice_args = args[0]
-        # if self.man_dim < len(slice_args):
-        #     if isinstance(slice_args[self.man_dim], int):
-        #         raise ValueError(
-        #             f"Attempting to slice into the manifold dimension {self.man_dim} of tensor "
-        #             f"{self} with dimensions {self.size()}."
-        #         )
+        # Deal with the case where the argument is a long tensor
+        if isinstance(args[0], Tensor) and args[0].dtype == long:
+            if self.man_dim == 0:
+                raise ValueError(
+                    f"Long tensor indexing is only possible when the manifold dimension "
+                    f"is not 0, but the manifold dimension is {self.man_dim}"
+                )
+            new_tensor = self.tensor.__getitem__(*args)
+            new_man_dim = self.man_dim + args[0].dim() - 1
+            return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
+
+        # Convert the args to a list and replace Ellipsis by the correct number of full slices
+        arg_list = list(args[0])
+        if Ellipsis in arg_list:
+            ell_id = arg_list.index(Ellipsis)
+            colon_repeats = self.dim() - sum(1 for a in arg_list if a is not None) + 1
+            arg_list[ell_id : ell_id + 1] = colon_repeats * [slice(None, None, None)]
 
         new_tensor = self.tensor.__getitem__(*args)
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
+        output_man_dim = self.man_dim
+        counter = self.man_dim + 1
+
+        # Compute output manifold dimension
+        for arg in arg_list:
+            # None values add a dimension
+            if arg is None:
+                output_man_dim += 1
+                continue
+            # Integers remove a dimension
+            elif isinstance(arg, int):
+                output_man_dim -= 1
+                counter -= 1
+            # Other values leave the dimension intact
+            else:
+                counter -= 1
+
+            # When the counter hits 0 and the next term isn't None, we hit the man_dim term
+            if counter == 0:
+                if isinstance(arg, int) or isinstance(arg, list):
+                    raise ValueError(
+                        f"Attempting to slice into the manifold dimension, but this is not a "
+                        "valid operation"
+                    )
+                # If we get past the man_dim term, the output man_dim doesn't change anymore
+                break
+
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=output_man_dim)
 
     def cpu(self) -> ManifoldTensor:
         """Returns a copy of this object with self.tensor in CPU memory."""

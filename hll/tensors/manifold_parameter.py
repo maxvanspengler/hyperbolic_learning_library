@@ -4,7 +4,7 @@ import torch
 from torch import Tensor, tensor
 from torch.nn import Parameter
 
-from hll.manifolds.base import Manifold
+from hll.manifolds import Manifold
 from hll.tensors.manifold_tensor import ManifoldTensor
 
 

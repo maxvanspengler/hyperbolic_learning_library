@@ -1,8 +1,6 @@
-import pytest
 import torch
 
-from hll.manifolds import Euclidean
-from hll.nn import HFlatten
+from hll.manifolds.euclidean import Euclidean
 from hll.tensors import ManifoldTensor
 
 

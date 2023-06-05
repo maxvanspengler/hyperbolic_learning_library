@@ -1,7 +1,7 @@
-import pytest
 import torch
 
-from hll.manifolds import Curvature, Euclidean, PoincareBall
+from hll.manifolds.euclidean import Euclidean
+from hll.manifolds.poincare_ball import Curvature, PoincareBall
 from hll.nn import ChangeManifold
 from hll.tensors import ManifoldTensor, TangentTensor
 

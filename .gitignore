@@ -1,6 +1,8 @@
 __pycache__/
 *.egg-info/
 .pytest_cache
+/data
+/tests/data
 .vscode
 build
 data
