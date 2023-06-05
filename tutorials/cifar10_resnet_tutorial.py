@@ -1,10 +1,29 @@
-########################################################################
-# 1. Define a hyperbolic manifold
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# We use the Poincaré ball model for the purposes of this tutorial.
-# This tutorial assumes the availability of a GPU. While training a
-# hyperbolic ResNet without GPUs is possible, we strongly recommend
-# using a GPU for this task.
+# -*- coding: utf-8 -*-
+"""
+Training a Poincare ResNet
+==========================
+
+This is an implementation based on the Poincare Resnet paper, which can be found at:
+
+- https://arxiv.org/abs/2303.14027
+
+This tutorial assumes the availability of a GPU. Due to the complexity of hypebolic operations
+we strongly advise to only run this tutorial with a GPU.
+
+We will perform the following steps in order:
+
+1. Define a hyperbolic manifold
+2. Load and normalize the CIFAR10 training and test datasets using ``torchvision``
+3. Define a Poincare ResNet
+4. Define a loss function and optimizer
+5. Train the network on the training data
+6. Test the network on the test data
+
+"""
+
+#############################
+# 1. Define the Poincare ball
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from hll.manifolds import Curvature, PoincareBall
 
@@ -14,7 +33,7 @@ from hll.manifolds import Curvature, PoincareBall
 manifold = PoincareBall(c=Curvature(value=0.1, requires_grad=True))
 
 
-########################################################################
+###############################
 # 2. Load and normalize CIFAR10
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -51,9 +70,9 @@ testloader = torch.utils.data.DataLoader(
 )
 
 
-########################################################################
-# 3. Define a hyperbolic ResNet
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+###############################
+# 3. Define a Poincare ResNet
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # This implementation is based on the Poincare ResNet paper, which can
 # be found at https://arxiv.org/abs/2303.14027 and which, in turn, is 
 # based on the original Euclidean implementation described in the paper
@@ -79,6 +98,8 @@ class PoincareResidualBlock(nn.Module):
         stride: int = 1,
         downsample: Optional[nn.Sequential] = None,
     ):
+        # We can replace each operation in the usual ResidualBlock by a manifold-agnostic 
+        # operation and supply the PoincareBall object to these operations.
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -120,7 +141,7 @@ class PoincareResidualBlock(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(residual)
 
-        # TODO: add addition op to Manifold
+        # We replace the addition operation inside the skip connection by a Mobius addition.
         x = self.manifold.mobius_add(x, residual)
         x = self.relu(x)
 
@@ -134,6 +155,9 @@ class PoincareResNet(nn.Module):
         group_depths: list[int],
         manifold: PoincareBall,
     ):
+        # For the Poincare ResNet itself we again replace each layer by a manifold-agnostic one 
+        # and supply the PoincareBall to each of these. We also replace the ResidualBlocks by 
+        # the manifold-agnostic one defined above. 
         super().__init__()
         self.channel_sizes = channel_sizes
         self.group_depths = group_depths
@@ -221,7 +245,8 @@ class PoincareResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-# Let's create a thin ResNet with a depth of 20 layers.
+# Now, let's create a thin Poincare ResNet with channel sizes [4, 8, 16] and with a depth of 20 
+# layers.
 net = PoincareResNet(
     channel_sizes=[4, 8, 16],
     group_depths=[3, 3, 3],
@@ -229,14 +254,10 @@ net = PoincareResNet(
 ).cuda()
 
 
-########################################################################
+#########################################
 # 4. Define a Loss function and optimizer
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's use a Classification Cross-Entropy loss and RiemannianAdam optimizer.
-# Adam is preferred because hyperbolic linear layers can sometimes have training
-# difficulties early on due to poor initialization.
-
-import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
@@ -245,7 +266,7 @@ from hll.optim import RiemannianAdam
 optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
 
-########################################################################
+######################
 # 5. Train the network
 # ^^^^^^^^^^^^^^^^^^^^
 # We simply have to loop over our data iterator, project the inputs onto the
@@ -280,7 +301,7 @@ for epoch in range(20):  # loop over the dataset multiple times
 print("Finished Training")
 
 
-########################################################################
+######################################
 # 6. Test the network on the test data
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
