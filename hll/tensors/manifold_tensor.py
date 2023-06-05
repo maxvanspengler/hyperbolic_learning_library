@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
-import torch
-from torch import Tensor, tensor
+from torch import Tensor, tensor, long
 
 from hll.manifolds import Manifold
 
@@ -51,19 +50,39 @@ class ManifoldTensor:
                 )
 
     def __getitem__(self, *args):
-        # TODO: write a check that sees if the man_dim remains untouched.
-        # man_dim_num = self.size(self.man_dim)
-
-        # slice_args = args[0]
-        # if self.man_dim < len(slice_args):
-        #     if isinstance(slice_args[self.man_dim], int):
-        #         raise ValueError(
-        #             f"Attempting to slice into the manifold dimension {self.man_dim} of tensor "
-        #             f"{self} with dimensions {self.size()}."
-        #         )
+        if len(args) == 1 and isinstance(args[0], Tensor) and args[0].dtype == long:
+            new_tensor = self.tensor.__getitem__(*args)
+            return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=-1)
+        
+        arg_list = list(args[0])
+        if Ellipsis in arg_list:
+            ell_id = arg_list.index(Ellipsis)
+            colon_repeats = self.dim() - sum(1 for a in arg_list if a is not None) + 1
+            arg_list[ell_id : ell_id + 1] = colon_repeats * [slice(None, None, None)]
 
         new_tensor = self.tensor.__getitem__(*args)
-        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=self.man_dim)
+        output_man_dim = self.man_dim
+        counter = self.man_dim + 1
+
+        for arg in arg_list:
+            if arg is None:
+                output_man_dim += 1
+                continue
+            elif isinstance(arg, int):
+                output_man_dim -= 1
+                counter -= 1
+            else:
+                counter -= 1
+
+            if counter == 0:
+                if isinstance(arg, int) or isinstance(arg, list):
+                    raise ValueError(
+                        f"Attempting to slice into the manifold dimension, but this is not a "
+                        "valid operation"
+                    )
+                break
+
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=output_man_dim)
 
     def cpu(self) -> ManifoldTensor:
         """Returns a copy of this object with self.tensor in CPU memory."""
