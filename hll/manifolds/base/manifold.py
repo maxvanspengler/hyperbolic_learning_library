@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Union
 
 from torch import Tensor
-from torch.nn.common_types import _size_2_t
 from torch.nn import Module, Parameter
+from torch.nn.common_types import _size_2_t
 
 # TODO: find a less hacky solution for this
 if TYPE_CHECKING:
@@ -93,7 +93,7 @@ class Manifold(Module, ABC):
     @abstractmethod
     def flatten(self, x: ManifoldTensor, start_dim: int = 1, end_dim: int = -1) -> ManifoldTensor:
         raise NotImplementedError
-    
+
     @abstractmethod
     def unfold(
         self,

@@ -8,7 +8,9 @@ from torch.nn.functional import max_pool2d
 from hll.manifolds import Manifold
 from hll.tensors import ManifoldTensor
 from hll.utils.layer_utils import (
-    check_if_man_dims_match, check_if_manifolds_match, op_in_tangent_space
+    check_if_man_dims_match,
+    check_if_manifolds_match,
+    op_in_tangent_space,
 )
 
 
@@ -30,9 +32,7 @@ class HAvgPool2d(Module):
         self.manifold = manifold
         self.stride = stride if (stride is not None) else self.kernel_size
         self.padding = (
-            padding
-            if isinstance(padding, tuple) and len(padding) == 2
-            else (padding, padding)
+            padding if isinstance(padding, tuple) and len(padding) == 2 else (padding, padding)
         )
         self.use_midpoint = use_midpoint
 
@@ -57,9 +57,7 @@ class HAvgPool2d(Module):
             unfolded_input.size(-1),
         )
 
-        x = ManifoldTensor(
-            data=per_kernel_view, manifold=self.manifold, man_dim=1
-        )
+        x = ManifoldTensor(data=per_kernel_view, manifold=self.manifold, man_dim=1)
 
         if self.use_midpoint:
             aggregates = self.manifold.midpoint(x=x, batch_dim=2)

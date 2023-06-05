@@ -74,9 +74,9 @@ testloader = torch.utils.data.DataLoader(
 # 3. Define a Poincare ResNet
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # This implementation is based on the Poincare ResNet paper, which can
-# be found at https://arxiv.org/abs/2303.14027 and which, in turn, is 
+# be found at https://arxiv.org/abs/2303.14027 and which, in turn, is
 # based on the original Euclidean implementation described in the paper
-# Deep Residual Learning for Image Recognition by He et al. from 2015: 
+# Deep Residual Learning for Image Recognition by He et al. from 2015:
 # https://arxiv.org/abs/1512.03385.
 
 
@@ -98,7 +98,7 @@ class PoincareResidualBlock(nn.Module):
         stride: int = 1,
         downsample: Optional[nn.Sequential] = None,
     ):
-        # We can replace each operation in the usual ResidualBlock by a manifold-agnostic 
+        # We can replace each operation in the usual ResidualBlock by a manifold-agnostic
         # operation and supply the PoincareBall object to these operations.
         super().__init__()
         self.in_channels = in_channels
@@ -115,9 +115,7 @@ class PoincareResidualBlock(nn.Module):
             stride=stride,
             padding=1,
         )
-        self.bn1 = hnn.HBatchNorm2d(
-            features=out_channels, manifold=manifold
-        )
+        self.bn1 = hnn.HBatchNorm2d(features=out_channels, manifold=manifold)
         self.relu = hnn.HReLU(manifold=self.manifold)
         self.conv2 = hnn.HConvolution2d(
             in_channels=out_channels,
@@ -126,9 +124,7 @@ class PoincareResidualBlock(nn.Module):
             manifold=manifold,
             padding=1,
         )
-        self.bn2 = hnn.HBatchNorm2d(
-            features=out_channels, manifold=manifold
-        )
+        self.bn2 = hnn.HBatchNorm2d(features=out_channels, manifold=manifold)
 
     def forward(self, x: ManifoldTensor) -> ManifoldTensor:
         residual = x
@@ -155,9 +151,9 @@ class PoincareResNet(nn.Module):
         group_depths: list[int],
         manifold: PoincareBall,
     ):
-        # For the Poincare ResNet itself we again replace each layer by a manifold-agnostic one 
-        # and supply the PoincareBall to each of these. We also replace the ResidualBlocks by 
-        # the manifold-agnostic one defined above. 
+        # For the Poincare ResNet itself we again replace each layer by a manifold-agnostic one
+        # and supply the PoincareBall to each of these. We also replace the ResidualBlocks by
+        # the manifold-agnostic one defined above.
         super().__init__()
         self.channel_sizes = channel_sizes
         self.group_depths = group_depths
@@ -170,9 +166,7 @@ class PoincareResNet(nn.Module):
             manifold=manifold,
             padding=1,
         )
-        self.bn = hnn.HBatchNorm2d(
-            features=channel_sizes[0], manifold=manifold
-        )
+        self.bn = hnn.HBatchNorm2d(features=channel_sizes[0], manifold=manifold)
         self.relu = hnn.HReLU(manifold=manifold)
         self.group1 = self._make_group(
             in_channels=channel_sizes[0],
@@ -245,7 +239,8 @@ class PoincareResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-# Now, let's create a thin Poincare ResNet with channel sizes [4, 8, 16] and with a depth of 20 
+
+# Now, let's create a thin Poincare ResNet with channel sizes [4, 8, 16] and with a depth of 20
 # layers.
 net = PoincareResNet(
     channel_sizes=[4, 8, 16],
