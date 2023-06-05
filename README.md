@@ -12,7 +12,7 @@ Contents:
 * [BibTeX](#bibtex)
 
 
-## Docs
+## Documentation
 _Coming soon!_
 
 
