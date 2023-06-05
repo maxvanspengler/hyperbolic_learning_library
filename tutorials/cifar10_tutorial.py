@@ -20,13 +20,13 @@ We will do the following steps in order:
 5. Train the network on the training data
 6. Test the network on the test data
 
+"""
 
 ########################################################################
 # 1. Define a hyperbolic manifold
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # We use the Poincaré ball model for the purposes of this tutorial.
 
-"""
 
 from hll.manifolds import Curvature, PoincareBall
 
