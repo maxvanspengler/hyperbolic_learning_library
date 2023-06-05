@@ -44,6 +44,61 @@ def test_device_methods(manifold_tensor: ManifoldTensor):
     assert manifold_tensor.man_dim == 1
 
 
+def test_slicing(manifold_tensor: ManifoldTensor):
+    # First test slicing with the usual numpy slicing 
+    manifold_tensor = ManifoldTensor(
+        data=torch.ones(2, 3, 4, 5, 6, 7, 8, 9),
+        manifold=PoincareBall(Curvature()),
+        man_dim=-2,
+    )
+    sliced_tensor = manifold_tensor[1, None, [0, 2], ..., None, 2:5, :, 1]
+    # Explanation of the output size: the dimension of size 2 dissappears because of the integer
+    # index. Then, a dim of size 1 is added by None. The size 3 dimension reduces to 2 because
+    # of the list of indices. The Ellipsis skips the dimensions of sizes 4, 5 and 6. Then another
+    # None leads to an insertion of a dimension of size 1. The dimension with size 7 is reduced
+    # to 3 because of the 2:5 slice. The manifold dimension of size 8 is left alone and the last
+    # dimension is removed because of an integer index.
+    assert list(sliced_tensor.size()) == [1, 2, 4, 5, 6, 1, 3, 8]
+    assert sliced_tensor.man_dim == 7
+
+    # Now we try to slice into the manifold dimension, which should raise an error
+    with pytest.raises(ValueError):
+        manifold_tensor[1, None, [0, 2], ..., None, 2:5, 5, 1]
+
+    # Next, we try long tensor indexing, which is used in embeddings
+    embedding_manifold_tensor = ManifoldTensor(
+        data=torch.ones(10, 3),
+        manifold=PoincareBall(Curvature()),
+        man_dim=-1,
+    )
+    indices = torch.Tensor([
+        [1, 2],
+        [3, 4],
+    ]).long()
+    embedding_selection = embedding_manifold_tensor[indices]
+    assert list(embedding_selection.size()) == [2, 2, 3]
+    assert embedding_selection.man_dim == 2
+
+    # This should fail if the man_dim is 0 on the embedding tensor though
+    embedding_manifold_tensor = ManifoldTensor(
+        data=torch.ones(10, 3),
+        manifold=PoincareBall(Curvature()),
+        man_dim=0,
+    )
+    with pytest.raises(ValueError):
+        embedding_manifold_tensor[indices]
+
+    # Lastly, embeddings with more dimensions should work too
+    embedding_manifold_tensor = ManifoldTensor(
+        data=torch.ones(10, 3, 3, 3),
+        manifold=PoincareBall(Curvature()),
+        man_dim=2,
+    )
+    embedding_selection = embedding_manifold_tensor[indices]
+    assert list(embedding_selection.size()) == [2, 2, 3, 3, 3]
+    assert embedding_selection.man_dim == 3
+
+
 def test_torch_ops(manifold_tensor: ManifoldTensor):
     # We want torch functons to raise an error
     with pytest.raises(TypeError):
