@@ -4,7 +4,8 @@ from typing import Union
 from torch import no_grad
 from torch.optim import Optimizer
 
-from hll.manifolds import Euclidean, Manifold
+from hll.manifolds import Manifold
+from hll.manifolds.euclidean import Euclidean
 from hll.tensors import ManifoldParameter, ManifoldTensor
 
 

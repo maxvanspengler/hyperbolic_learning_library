@@ -1,8 +1,7 @@
 import pytest
 import torch
 
-from hll.manifolds import Curvature, PoincareBall
-from hll.nn import HFlatten
+from hll.manifolds.poincare_ball import Curvature, PoincareBall
 from hll.tensors import ManifoldTensor
 
 

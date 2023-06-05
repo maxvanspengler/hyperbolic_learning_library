@@ -69,7 +69,7 @@ dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
 
 
 # Define the manifold on which the embeddings will be trained
-from hll.manifolds import Curvature, PoincareBall
+from hll.manifolds.poincare_ball import Curvature, PoincareBall
 
 poincare_ball = PoincareBall(Curvature(1.0))
 

@@ -1,10 +1,7 @@
 import pytest
-import torch
 from pytest_mock import MockerFixture
 
-from hll.manifolds import Curvature, PoincareBall
 from hll.nn import HFlatten
-from hll.tensors import ManifoldTensor
 
 
 def test_hflatten(mocker: MockerFixture) -> None:
