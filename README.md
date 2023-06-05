@@ -4,7 +4,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![isort: checked](https://img.shields.io/badge/isort-checked-yellow)](https://github.com/PyCQA/isort)
 
-The Hyperbolic Learning Library (HLL) is an extension of PyTorch offering various tools for deep learning in hyperbolic space.
+An extension of the PyTorch library containing various tools for performing deep learning in hyperbolic space. 
 
 Contents:
 * [Documentation](#documentation)
