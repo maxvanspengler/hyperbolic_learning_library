@@ -50,9 +50,21 @@ class ManifoldTensor:
                 )
 
     def __getitem__(self, *args):
-        if len(args) == 1 and isinstance(args[0], Tensor) and args[0].dtype == long:
+        if len(args) != 1:
+            raise ValueError(
+                f"No support for slicing with these arguments. If you think there should be "
+                f"support, please consider opening a issue on GitHub describing your case."
+            )
+
+        if isinstance(args[0], Tensor) and args[0].dtype == long:
+            if self.man_dim == 0:
+                raise ValueError(
+                    f"Long tensor indexing is only possible when the manifold dimension "
+                    f"is not 0, but the manifold dimension is {self.man_dim}"
+                )
             new_tensor = self.tensor.__getitem__(*args)
-            return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=-1)
+            new_man_dim = self.man_dim + args[0].dim() - 1
+            return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
 
         arg_list = list(args[0])
         if Ellipsis in arg_list:
