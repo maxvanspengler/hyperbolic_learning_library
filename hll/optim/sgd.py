@@ -91,7 +91,8 @@ class RiemannianSGD(Optimizer):
                             # momentum_buffer.tensor.copy_(new_momentum_buffer.tensor)
                             param.tensor.copy_(new_param.tensor)
                         else:
-                            new_param = manifold.expmap(x=param, v=-lr * grad)
+                            # grad.tensor = -lr * grad.tensor
+                            # new_param = manifold.expmap(v=grad)
                             param.tensor.copy_(new_param.tensor)
 
                     else:
