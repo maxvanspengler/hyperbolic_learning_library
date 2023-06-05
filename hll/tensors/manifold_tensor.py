@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from torch import Tensor, tensor, long
+from torch import Tensor, long, tensor
 
 from hll.manifolds import Manifold
 
@@ -53,7 +53,7 @@ class ManifoldTensor:
         if len(args) == 1 and isinstance(args[0], Tensor) and args[0].dtype == long:
             new_tensor = self.tensor.__getitem__(*args)
             return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=-1)
-        
+
         arg_list = list(args[0])
         if Ellipsis in arg_list:
             ell_id = arg_list.index(Ellipsis)

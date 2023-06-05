@@ -2,8 +2,8 @@
 # This is a directed graph that is transitively closed.
 import json
 import os
-import networkx as nx
 
+import networkx as nx
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 mammals_json_file = os.path.join(root, "data", "wordnet_mammals.json")
@@ -15,6 +15,7 @@ mammals_graph = nx.node_link_graph(graph_dict)
 
 # Define the dataset that samples relations from hierarchy to be used during training.
 import random
+
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -30,7 +31,7 @@ class MammalsEmbeddingDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.edges_list)
-    
+
     def __getitem__(self, idx: int):
         rel = self.edges_list[idx]
         negative_target_nodes = list(
@@ -41,9 +42,7 @@ class MammalsEmbeddingDataset(Dataset):
             negative_target_nodes, negative_target_sample_size
         )
 
-        edges = torch.tensor(
-            [rel] + [[rel[0], neg] for neg in negative_target_nodes_sample]
-        )
+        edges = torch.tensor([rel] + [[rel[0], neg] for neg in negative_target_nodes_sample])
 
         negative_source_nodes = list(
             self.mammals.nodes() - nx.ancestors(self.mammals, rel[1]) - {rel[1]}
@@ -54,28 +53,23 @@ class MammalsEmbeddingDataset(Dataset):
         )
 
         edges = torch.cat(
-            tensors=(
-                edges,
-                torch.tensor([[neg, rel[1]] for neg in negative_source_nodes_sample])
-            ),
+            tensors=(edges, torch.tensor([[neg, rel[1]] for neg in negative_source_nodes_sample])),
             dim=0,
         )
 
-        edge_label_targets = torch.cat(
-            tensors=[torch.ones(1).bool(), torch.zeros(10).bool()]
-        )
+        edge_label_targets = torch.cat(tensors=[torch.ones(1).bool(), torch.zeros(10).bool()])
 
         return edges, edge_label_targets
-    
+
+
 dataset = MammalsEmbeddingDataset(
     mammals=mammals_graph,
 )
 dataloader = DataLoader(dataset, batch_size=128, shuffle=True)
-    
+
 
 # Define the manifold on which the embeddings will be trained
 from hll.manifolds import Curvature, PoincareBall
-
 
 poincare_ball = PoincareBall(Curvature(1.0))
 
@@ -97,7 +91,7 @@ class PoincareEmbedding(hnn.HEmbedding):
         embeddings = super().forward(edges)
         edge_distances = self.manifold.dist(x=embeddings[:, :, 0, :], y=embeddings[:, :, 1, :])
         return edge_distances
-    
+
 
 model = PoincareEmbedding(
     num_embeddings=len(mammals_graph.nodes()),
@@ -105,10 +99,9 @@ model = PoincareEmbedding(
     manifold=poincare_ball,
 )
 
+
 # Next, we define the poincare embedding loss as defined in the original paper <REF>
-def poincare_embeddings_loss(
-    dists: torch.Tensor, targets: torch.Tensor
-) -> torch.Tensor:
+def poincare_embeddings_loss(dists: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     logits = dists.neg().exp()
     numerator = torch.where(condition=targets, input=logits, other=0).sum(dim=-1)
     denominator = logits.sum(dim=-1)
@@ -118,7 +111,6 @@ def poincare_embeddings_loss(
 
 # Now let's setup the "burn-in" phase of training
 from hll.optim import RiemannianSGD
-
 
 optimizer = RiemannianSGD(
     params=model.parameters(),
