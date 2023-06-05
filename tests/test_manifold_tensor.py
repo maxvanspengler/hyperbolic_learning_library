@@ -45,7 +45,7 @@ def test_device_methods(manifold_tensor: ManifoldTensor):
 
 
 def test_slicing(manifold_tensor: ManifoldTensor):
-    # First test slicing with the usual numpy slicing 
+    # First test slicing with the usual numpy slicing
     manifold_tensor = ManifoldTensor(
         data=torch.ones(2, 3, 4, 5, 6, 7, 8, 9),
         manifold=PoincareBall(Curvature()),
@@ -71,10 +71,12 @@ def test_slicing(manifold_tensor: ManifoldTensor):
         manifold=PoincareBall(Curvature()),
         man_dim=-1,
     )
-    indices = torch.Tensor([
-        [1, 2],
-        [3, 4],
-    ]).long()
+    indices = torch.Tensor(
+        [
+            [1, 2],
+            [3, 4],
+        ]
+    ).long()
     embedding_selection = embedding_manifold_tensor[indices]
     assert list(embedding_selection.size()) == [2, 2, 3]
     assert embedding_selection.man_dim == 2
