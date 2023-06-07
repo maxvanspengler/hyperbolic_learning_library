@@ -23,7 +23,7 @@ extensions = [
     "sphinx.ext.autodoc",  # Core library for html generation from docstrings
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "sphinx_gallery.gen_gallery",
+    # "sphinx_gallery.gen_gallery",
     "sphinx_tabs.tabs",
 ]
 
@@ -44,11 +44,11 @@ napoleon_use_param = False
 napoleon_use_rtype = False
 napoleon_type_aliases = None
 
-sphinx_gallery_conf = {
-    "examples_dirs": "../../tutorials",
-    "gallery_dirs": "tutorials/",
-    "filename_pattern": "",
-}
+# sphinx_gallery_conf = {
+#     "examples_dirs": "../../tutorials",
+#     "gallery_dirs": "tutorials/",
+#     "filename_pattern": "",
+# }
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
