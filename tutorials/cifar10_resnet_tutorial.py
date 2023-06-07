@@ -7,8 +7,8 @@ This is an implementation based on the Poincare Resnet paper, which can be found
 
 - https://arxiv.org/abs/2303.14027
 
-This tutorial assumes the availability of a GPU. Due to the complexity of hypebolic operations
-we strongly advise to only run this tutorial with a GPU.
+Due to the complexity of hyperbolic operations we strongly advise to only run this tutorial with a 
+GPU.
 
 We will perform the following steps in order:
 
@@ -20,6 +20,15 @@ We will perform the following steps in order:
 6. Test the network on the test data
 
 """
+
+##############################
+# 0. Grab the available device
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+import torch
+
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
 #############################
 # 1. Define the Poincare ball
@@ -37,7 +46,6 @@ manifold = PoincareBall(c=Curvature(value=0.1, requires_grad=True))
 # 2. Load and normalize CIFAR10
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-import torch
 import torchvision
 import torchvision.transforms as transforms
 
@@ -245,7 +253,7 @@ net = PoincareResNet(
     channel_sizes=[4, 8, 16],
     group_depths=[3, 3, 3],
     manifold=manifold,
-).cuda()
+).to(device)
 
 
 #########################################
@@ -264,15 +272,16 @@ optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 # 5. Train the network
 # ^^^^^^^^^^^^^^^^^^^^
 # We simply have to loop over our data iterator, project the inputs onto the
-# manifold, and feed them to the network and optimize.
+# manifold, and feed them to the network and optimize. We will train for a limited
+# number of epochs here due to the long training time of this model.
 
 from hypll.tensors import TangentTensor
 
-for epoch in range(20):  # loop over the dataset multiple times
+for epoch in range(2):  # Increase this number to at least 100 for good results
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
-        inputs, labels = data[0].cuda(), data[1].cuda()
+        inputs, labels = data[0].to(device), data[1].to(device)
 
         # move the inputs to the manifold
         tangents = TangentTensor(data=inputs, man_dim=1, manifold=manifold)
@@ -306,7 +315,7 @@ total = 0
 # since we're not training, we don't need to calculate the gradients for our outputs
 with torch.no_grad():
     for data in testloader:
-        images, labels = data[0].cuda(), data[1].cuda()
+        images, labels = data[0].to(device), data[1].to(device)
 
         # move the images to the manifold
         tangents = TangentTensor(data=images, man_dim=1, manifold=manifold)
