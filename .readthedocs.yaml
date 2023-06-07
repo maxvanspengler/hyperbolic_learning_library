@@ -10,4 +10,7 @@ sphinx:
 
 python:
   install:
-  - .[docs]
+  - method: pip
+    path: .
+    extra_requirements:
+      - docs
