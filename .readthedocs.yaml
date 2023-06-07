@@ -6,6 +6,7 @@ build:
     python: "3.11"
 
 sphinx:
+  builder: html-noplot
   configuration: docs/source/conf.py
 
 python:
