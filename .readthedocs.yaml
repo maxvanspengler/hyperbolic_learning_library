@@ -8,7 +8,6 @@ build:
     - make html-noplot
 
 sphinx:
-  builder: html-noplot
   configuration: docs/source/conf.py
 
 python:
