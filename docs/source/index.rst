@@ -22,6 +22,8 @@ to see open issues and share your feedback!
    :maxdepth: 1
 
    tutorials/cifar10_tutorial.rst
+   tutorials/cifar10_resnet_tutorial.rst
+   tutorials/poincare_embeddings_tutorial.rst
 
 
 .. toctree::
