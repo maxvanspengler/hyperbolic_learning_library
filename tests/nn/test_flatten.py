@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from hll.nn import HFlatten
+from hypll.nn import HFlatten
 
 
 def test_hflatten(mocker: MockerFixture) -> None:

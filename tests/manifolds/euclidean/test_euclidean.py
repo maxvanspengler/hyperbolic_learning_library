@@ -1,7 +1,7 @@
 import torch
 
-from hll.manifolds.euclidean import Euclidean
-from hll.tensors import ManifoldTensor
+from hypll.manifolds.euclidean import Euclidean
+from hypll.tensors import ManifoldTensor
 
 
 def test_flatten__man_dim_equals_start_dim() -> None:

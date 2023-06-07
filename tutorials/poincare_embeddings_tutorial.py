@@ -122,7 +122,7 @@ dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
 # 3. Initialize the Poincare ball on which the embeddings will be trained
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-from hll.manifolds.poincare_ball import Curvature, PoincareBall
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
 poincare_ball = PoincareBall(Curvature(1.0))
 
@@ -131,7 +131,7 @@ poincare_ball = PoincareBall(Curvature(1.0))
 # 4. Define the Poincare embedding model
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-import hll.nn as hnn
+import hypll.nn as hnn
 
 
 class PoincareEmbedding(hnn.HEmbedding):
@@ -177,7 +177,7 @@ def poincare_embeddings_loss(dists: torch.Tensor, targets: torch.Tensor) -> torc
 # 6. Perform a few "burn-in" training epochs with reduced learning rate
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-from hll.optim import RiemannianSGD
+from hypll.optim import RiemannianSGD
 
 # The learning rate of 0.3 is dived by 10 during burn-in.
 optimizer = RiemannianSGD(

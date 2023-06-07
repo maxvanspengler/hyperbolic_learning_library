@@ -5,9 +5,9 @@ from torch.nn import Module
 from torch.nn.common_types import _size_2_t, _size_any_t
 from torch.nn.functional import max_pool2d
 
-from hll.manifolds import Manifold
-from hll.tensors import ManifoldTensor
-from hll.utils.layer_utils import (
+from hypll.manifolds import Manifold
+from hypll.tensors import ManifoldTensor
+from hypll.utils.layer_utils import (
     check_if_man_dims_match,
     check_if_manifolds_match,
     op_in_tangent_space,

@@ -1,8 +1,8 @@
 from torch import Tensor, empty, no_grad, normal, ones_like, zeros_like
 from torch.nn import Module
 
-from hll.manifolds import Manifold
-from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hypll.manifolds import Manifold
+from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class HEmbedding(Module):

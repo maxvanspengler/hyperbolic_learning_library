@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../.."))  # Source code dir relative to this file
 
-project = "hll"
+project = "hypll"
 copyright = '2023, ""'
 author = '""'
 

@@ -1,10 +1,10 @@
 Installation
 ============
 
-HLL was written for Python 3.10+ and PyTorch 1.11+. 
+HypLL was written for Python 3.10+ and PyTorch 1.11+. 
 
 It's recommended to have a
-working PyTorch installation before setting up HLL:
+working PyTorch installation before setting up HypLL:
 
 * `PyTorch <https://pytorch.org/get-started/locally/>`_ installation instructions.
 
@@ -35,11 +35,11 @@ Activate the virtual environment.
          .env/Scripts/activate
 
 
-Install HLL from PyPI.
+Install HypLL from PyPI.
 
 .. code::
 
-   pip install hll
+   pip install hypll
 
 
 Congratulations, you are ready to do machine learning in hyperbolic space.

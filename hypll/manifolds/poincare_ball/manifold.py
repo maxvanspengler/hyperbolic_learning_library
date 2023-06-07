@@ -8,12 +8,12 @@ from torch.nn.common_types import _size_2_t
 from torch.nn.functional import softplus, unfold
 from torch.nn.init import normal_, zeros_
 
-from hll.manifolds.base import Manifold
-from hll.manifolds.euclidean import Euclidean
-from hll.manifolds.poincare_ball.curvature import Curvature
-from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
-from hll.utils.math import beta_func
-from hll.utils.tensor_utils import (
+from hypll.manifolds.base import Manifold
+from hypll.manifolds.euclidean import Euclidean
+from hypll.manifolds.poincare_ball.curvature import Curvature
+from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hypll.utils.math import beta_func
+from hypll.utils.tensor_utils import (
     check_dims_with_broadcasting,
     check_tangent_tensor_positions,
 )
@@ -51,7 +51,7 @@ class PoincareBall(Manifold):
         """Initializes an instance of PoincareBall manifold.
 
         Examples:
-            >>> from hll.manifolds.poincare_ball import PoincareBall, Curvature
+            >>> from hypll.manifolds.poincare_ball import PoincareBall, Curvature
             >>> curvature = Curvature(value=1.0)
             >>> manifold = Manifold(c=curvature)
 

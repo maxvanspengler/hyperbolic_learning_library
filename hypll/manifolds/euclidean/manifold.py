@@ -8,9 +8,9 @@ from torch.nn.common_types import _size_2_t
 from torch.nn.functional import unfold
 from torch.nn.init import _calculate_fan_in_and_fan_out, kaiming_uniform_, uniform_
 
-from hll.manifolds.base import Manifold
-from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
-from hll.utils.tensor_utils import (
+from hypll.manifolds.base import Manifold
+from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+from hypll.utils.tensor_utils import (
     check_dims_with_broadcasting,
     check_tangent_tensor_positions,
 )

@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hll"
+name = "hypll"
 description = "A framework for hyperbolic learning in PyTorch"
 version = "0.0.1"
 dependencies = [
@@ -29,4 +29,4 @@ line-length = 100
 profile = "black"
 
 [tool.setuptools.packages.find]
-include = ["hll*"]
+include = ["hypll*"]

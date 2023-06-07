@@ -1,8 +1,8 @@
 from torch import Tensor
 from torch.nn import Module
 
-from hll.manifolds import Manifold
-from hll.tensors import ManifoldTensor, TangentTensor
+from hypll.manifolds import Manifold
+from hypll.tensors import ManifoldTensor, TangentTensor
 
 
 class ChangeManifold(Module):

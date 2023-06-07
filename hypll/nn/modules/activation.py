@@ -1,9 +1,9 @@
 from torch.nn import Module
 from torch.nn.functional import relu
 
-from hll.manifolds import Manifold
-from hll.tensors import ManifoldTensor
-from hll.utils.layer_utils import check_if_manifolds_match, op_in_tangent_space
+from hypll.manifolds import Manifold
+from hypll.tensors import ManifoldTensor
+from hypll.utils.layer_utils import check_if_manifolds_match, op_in_tangent_space
 
 
 class HReLU(Module):

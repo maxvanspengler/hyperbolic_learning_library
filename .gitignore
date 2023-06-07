@@ -5,6 +5,7 @@ __pycache__/
 /tests/data
 .vscode
 build
+/dist
 data
 docs/build
 docs/source/_autosummary

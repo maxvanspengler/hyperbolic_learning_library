@@ -1,9 +1,9 @@
 import torch
 
-from hll.manifolds.euclidean import Euclidean
-from hll.manifolds.poincare_ball import Curvature, PoincareBall
-from hll.nn import ChangeManifold
-from hll.tensors import ManifoldTensor, TangentTensor
+from hypll.manifolds.euclidean import Euclidean
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
+from hypll.nn import ChangeManifold
+from hypll.tensors import ManifoldTensor, TangentTensor
 
 
 def test_change_manifold__euclidean_to_euclidean() -> None:
