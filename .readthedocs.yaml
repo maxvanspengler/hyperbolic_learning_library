@@ -5,7 +5,8 @@ build:
   tools:
     python: "3.11"
   commands:
-    - docs/make html-noplot
+    - cd docs
+    - make html-noplot
 
 sphinx:
   configuration: docs/source/conf.py
