@@ -2,8 +2,8 @@ from typing import Callable
 
 from torch.nn import Module
 
-from hll.manifolds import Manifold
-from hll.tensors import ManifoldTensor
+from hypll.manifolds import Manifold
+from hypll.tensors import ManifoldTensor
 
 
 def check_if_manifolds_match(layer: Module, input: ManifoldTensor) -> None:

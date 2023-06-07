@@ -1,6 +1,6 @@
 from pytest_mock import MockerFixture
 
-from hll.manifolds.poincare_ball import Curvature
+from hypll.manifolds.poincare_ball import Curvature
 
 
 def test_curvature(mocker: MockerFixture) -> None:

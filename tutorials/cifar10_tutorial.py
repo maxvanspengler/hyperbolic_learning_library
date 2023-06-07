@@ -28,7 +28,7 @@ We will do the following steps in order:
 # We use the Poincaré ball model for the purposes of this tutorial.
 
 
-from hll.manifolds.poincare_ball import Curvature, PoincareBall
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
 # Making the curvature a learnable parameter is usually suboptimal but can
 # make training smoother.
@@ -83,7 +83,7 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 from torch import nn
 
-from hll import nn as hnn
+from hypll import nn as hnn
 
 
 class Net(nn.Module):
@@ -120,11 +120,9 @@ net = Net()
 # Adam is preferred because hyperbolic linear layers can sometimes have training
 # difficulties early on due to poor initialization.
 
-import torch.optim as optim
-
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
-from hll.optim import RiemannianAdam
+from hypll.optim import RiemannianAdam
 
 optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
@@ -136,7 +134,7 @@ optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 # We simply have to loop over our data iterator, project the inputs onto the
 # manifold, and feed them to the network and optimize.
 
-from hll.tensors import TangentTensor
+from hypll.tensors import TangentTensor
 
 for epoch in range(2):  # loop over the dataset multiple times
     running_loss = 0.0

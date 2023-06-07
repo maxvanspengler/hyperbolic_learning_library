@@ -2,8 +2,8 @@
 Hyperbolic Learning Library
 ===========================
 
-The Hyperbolic Learning Library (HLL) was designed to bring
-the progress on hyperbolic deep learning together. HLL is built on
+The Hyperbolic Learning Library (HypLL) was designed to bring
+the progress on hyperbolic deep learning together. HypLL is built on
 top of PyTorch, with an emphasis on ease-of-use. 
 
 All code is open-source. Visit us on `GitHub <https://github.com/maxvanspengler/hyperbolic_learning_library>`_

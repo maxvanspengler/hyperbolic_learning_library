@@ -9,7 +9,7 @@ from torch.nn.common_types import _size_2_t
 
 # TODO: find a less hacky solution for this
 if TYPE_CHECKING:
-    from hll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
+    from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 
 
 class Manifold(Module, ABC):

@@ -18,10 +18,10 @@ _Coming soon!_
 
 ## Installation
 
-HLL was written for Python 3.10+ and PyTorch 1.11+. 
+The Hyperbolic Learning Library was written for Python 3.10+ and PyTorch 1.11+. 
 
 It's recommended to have a
-working PyTorch installation before setting up HLL:
+working PyTorch installation before setting up HypLL:
 
 * [PyTorch](https://pytorch.org/get-started/locally/) installation instructions.
 
@@ -40,10 +40,10 @@ Or on Windows:
 .env/Scripts/activate
 ```
 
-Finally, install HLL from PyPI.
+Finally, install HypLL from PyPI.
 
 ```
-pip install hll
+pip install hypll
 ```
 
 ## BibTeX

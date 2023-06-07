@@ -1,7 +1,7 @@
 import torch
 
-from hll.manifolds.poincare_ball import Curvature, PoincareBall
-from hll.tensors import ManifoldTensor
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
+from hypll.tensors import ManifoldTensor
 
 
 def test_flatten__man_dim_equals_start_dim() -> None:

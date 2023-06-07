@@ -4,7 +4,7 @@ from typing import Optional
 
 from torch import Tensor, long, tensor
 
-from hll.manifolds import Manifold
+from hypll.manifolds import Manifold
 
 
 class ManifoldTensor:

@@ -25,7 +25,7 @@ We will perform the following steps in order:
 # 1. Define the Poincare ball
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-from hll.manifolds import Curvature, PoincareBall
+from hypll.manifolds import Curvature, PoincareBall
 
 # Making the curvature a learnable parameter is usually suboptimal but can
 # make training smoother. An initial curvature of 0.1 has also been shown
@@ -84,9 +84,9 @@ from typing import Optional
 
 from torch import nn
 
-from hll import nn as hnn
-from hll.manifolds import PoincareBall
-from hll.tensors import ManifoldTensor
+from hypll import nn as hnn
+from hypll.manifolds import PoincareBall
+from hypll.tensors import ManifoldTensor
 
 
 class PoincareResidualBlock(nn.Module):
@@ -256,7 +256,7 @@ net = PoincareResNet(
 
 criterion = nn.CrossEntropyLoss()
 # net.parameters() includes the learnable curvature "c" of the manifold.
-from hll.optim import RiemannianAdam
+from hypll.optim import RiemannianAdam
 
 optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 
@@ -267,7 +267,7 @@ optimizer = RiemannianAdam(net.parameters(), lr=0.001)
 # We simply have to loop over our data iterator, project the inputs onto the
 # manifold, and feed them to the network and optimize.
 
-from hll.tensors import TangentTensor
+from hypll.tensors import TangentTensor
 
 for epoch in range(20):  # loop over the dataset multiple times
     running_loss = 0.0
