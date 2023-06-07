@@ -25,7 +25,7 @@ We will perform the following steps in order:
 # 1. Define the Poincare ball
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-from hypll.manifolds import Curvature, PoincareBall
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
 # Making the curvature a learnable parameter is usually suboptimal but can
 # make training smoother. An initial curvature of 0.1 has also been shown
@@ -85,7 +85,6 @@ from typing import Optional
 from torch import nn
 
 from hypll import nn as hnn
-from hypll.manifolds import PoincareBall
 from hypll.tensors import ManifoldTensor
 
 
