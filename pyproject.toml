@@ -21,6 +21,10 @@ dev = [
     "sphinx-gallery",
     "sphinx-tabs",
 ]
+docs = [
+    "networkx",
+    "torchvision",
+]
 
 [tool.black]
 line-length = 100
