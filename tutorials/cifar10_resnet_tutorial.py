@@ -26,8 +26,7 @@ We will perform the following steps in order:
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 import torch
 
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 #############################
