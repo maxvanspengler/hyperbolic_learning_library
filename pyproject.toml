@@ -16,12 +16,13 @@ dev = [
     "isort",
     "pytest",
     "pytest_mock",
+]
+docs = [
     "sphinx",
     "sphinx-copybutton",
     "sphinx-gallery",
     "sphinx-tabs",
-]
-docs = [
+    "matplotlib",
     "networkx",
     "torchvision",
 ]
