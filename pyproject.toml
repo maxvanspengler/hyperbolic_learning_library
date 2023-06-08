@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hypll"
 description = "A framework for hyperbolic learning in PyTorch"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
     "torch",
 ]
@@ -16,12 +16,13 @@ dev = [
     "isort",
     "pytest",
     "pytest_mock",
+]
+docs = [
     "sphinx",
     "sphinx-copybutton",
     "sphinx-gallery",
     "sphinx-tabs",
-]
-docs = [
+    "matplotlib",
     "networkx",
     "torchvision",
 ]
