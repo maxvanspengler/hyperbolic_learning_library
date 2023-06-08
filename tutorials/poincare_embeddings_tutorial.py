@@ -212,7 +212,7 @@ optimizer = RiemannianSGD(
     lr=0.3,
 )
 
-for epoch in range(300):
+for epoch in range(30):
     average_loss = 0
     for idx, (edges, edge_label_targets) in enumerate(dataloader):
         optimizer.zero_grad()
