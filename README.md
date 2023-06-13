@@ -1,5 +1,6 @@
 # Hyperbolic Learning Library
 
+[![Documentation Status](https://readthedocs.org/projects/hyperbolic-learning-library/badge/?version=latest)](https://hyperbolic-learning-library.readthedocs.io/en/latest/?badge=latest)
 ![Unit Tests](https://github.com/maxvanspengler/hyperbolic_pytorch/workflows/Run%20Unit%20Tests/badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![isort: checked](https://img.shields.io/badge/isort-checked-yellow)](https://github.com/PyCQA/isort)
@@ -13,7 +14,7 @@ Contents:
 
 
 ## Documentation
-_Coming soon!_
+Visit our [documentation](https://hyperbolic-learning-library.readthedocs.io/en/latest/index.html) for tutorials and more.
 
 
 ## Installation
