@@ -48,6 +48,8 @@ sphinx_gallery_conf = {
     "examples_dirs": "../../tutorials",
     "gallery_dirs": "tutorials/",
     "filename_pattern": "",
+    # TODO(Philipp, 06/23): Figure out how we can build and host tutorials on RTD.
+    "plot_gallery": "False",
 }
 
 # -- Options for HTML output -------------------------------------------------
