@@ -30,7 +30,23 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
-autosummary_generate = True
+# Autodoc options:
+autodoc_class_signature = "separated"
+autodoc_default_options = {
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
+}
+autodoc_default_flags = [
+    "members",
+    "undoc-members",
+    "special-members",
+    "show-inheritance",
+]
+
+# Napoleon options:
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 napoleon_include_init_with_doc = False
@@ -44,6 +60,7 @@ napoleon_use_param = False
 napoleon_use_rtype = False
 napoleon_type_aliases = None
 
+# Sphinx gallery config:
 sphinx_gallery_conf = {
     "examples_dirs": "../../tutorials",
     "gallery_dirs": "tutorials/",
