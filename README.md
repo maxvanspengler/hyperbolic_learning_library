@@ -48,4 +48,12 @@ pip install hypll
 ```
 
 ## BibTeX
-_Coming soon!_
+If you would like to cite this project, please use the following bibtex entry
+```
+@article{spengler2023hypll,
+  title={HypLL: The Hyperbolic Learning Library},
+  author={van Spengler, Max and Wirth, Philipp and Mettes, Pascal},
+  journal={arXiv preprint arXiv:2306.06154},
+  year={2023}
+}
+```
