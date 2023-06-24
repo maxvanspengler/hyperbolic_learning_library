@@ -1,5 +1,5 @@
 from torch.nn import Module
-from torch.nn.common_types import _size_2_t
+from torch.nn.common_types import _size_1_t, _size_2_t
 
 from hypll.manifolds import Manifold
 from hypll.tensors import ManifoldTensor
@@ -85,8 +85,18 @@ class HConvolution2d(Module):
         check_if_man_dims_match(layer=self, man_dim=1, input=x)
 
         batch_size, height, width = x.size(0), x.size(2), x.size(3)
-        out_height = (height - self.kernel_size[0] + 1 + 2 * self.padding) // self.stride
-        out_width = (width - self.kernel_size[1] + 1 + 2 * self.padding) // self.stride
+        out_height = _output_side_length(
+            input_side_length=height,
+            kernel_size=self.kernel_size[0],
+            padding=self.padding,
+            stride=self.stride,
+        )
+        out_width = _output_side_length(
+            input_side_length=width,
+            kernel_size=self.kernel_size[1],
+            padding=self.padding,
+            stride=self.stride,
+        )
 
         x = self.manifold.unfold(
             input=x,
@@ -101,3 +111,24 @@ class HConvolution2d(Module):
             man_dim=1,
         )
         return x
+
+
+def _output_side_length(
+    input_side_length: int, kernel_size: _size_1_t, padding: int, stride: int
+) -> int:
+    """Calculates the output side length of the kernel.
+
+    Based on https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html.
+
+    """
+    if kernel_size > input_side_length:
+        raise RuntimeError(
+            f"Encountered invalid kernel size {kernel_size} "
+            f"larger than input side length {input_side_length}"
+        )
+    if stride > input_side_length:
+        raise RuntimeError(
+            f"Encountered invalid stride {stride} "
+            f"larger than input side length {input_side_length}"
+        )
+    return 1 + (input_side_length + 2 * padding - (kernel_size - 1) - 1) // stride
