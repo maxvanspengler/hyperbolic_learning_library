@@ -12,9 +12,9 @@ We are looking for all sorts of contributions such as
 
 # Getting started
 ### Git workflow
-We want any new changes to HypLL to be linked to GitHub issues. If you have something new in mind that is not yet mentioned in an issue, please create an issue detailing the intended change first. Once you have an issue in mind that you would like to contribute to, create a branch from the corresponding issue as detailed in https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-a-branch-for-an-issue. 
+We want any new changes to HypLL to be linked to GitHub issues. If you have something new in mind that is not yet mentioned in an issue, please create an issue detailing the intended change first. Once you have an issue in mind that you would like to contribute to, [fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo).
 
-After you have finished your contribution, open a pull request on GitHub to have your contribution merged into our `main` branch. Note that your pull request will automatically be checked to see if it matches some of our standards. To avoid running into errors during your pull request, consider performing these tests locally first. A description on how to run the tests is given down below.
+After you have finished your contribution, [open a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) on GitHub to have your contribution merged into our `main` branch. Note that your pull request will automatically be checked to see if it matches some of our standards. To avoid running into errors during your pull request, consider performing these tests locally first. A description on how to run the tests is given down below.
 
 ### Local setup
 In order to get started locally with HypLL development, first clone the repository and make sure to install the repository with the correct optional dependencies from the `pyproject.toml` file. For example, if you only need the base development dependencies, navigate to the root directory (so the one containing this file) of your local version of this repository and install using:
