@@ -67,7 +67,6 @@ class TangentTensor:
 
         self.manifold_points = manifold_points
         self.manifold = manifold or manifold_points.manifold
-        self.man_dim = man_dim
 
     def __getattr__(self, name: str) -> Any:
         # TODO: go through https://pytorch.org/docs/stable/tensors.html and check which methods
