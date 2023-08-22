@@ -1,10 +1,12 @@
-import torch
 import random
+
 import numpy as np
+import torch
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 seed = 0
 
+torch.use_deterministic_algorithms(True)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 np.random.seed(seed)
@@ -18,11 +20,12 @@ manifold = PoincareBall(c=Curvature(value=0.1, requires_grad=False))
 
 # --------------------
 
+import collections
+
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
-import collections
 
 
 def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
@@ -58,7 +61,7 @@ class UniqueClassSampler(Sampler):
         g = torch.Generator()
         g.manual_seed(self.seed * 10000 + self.epoch)
         idx = torch.randperm(len(self.labels), generator=g).tolist()
-        max_indices = max([len(v) for v in self.labels_to_indices.values()])
+        max_indices = np.max(list(self.labels_to_indices.values()))
         for i in idx:
             t = self.labels_to_indices[self.labels[i]]
             idx_list.append(np.random.choice(t, size=self.m_per_class * max_indices))
@@ -97,7 +100,8 @@ trainloader = DataLoader(dataset=trainset, sampler=sampler, batch_size=batch_siz
 
 import timm
 from torch import nn
-from hypll.tensors import TangentTensor, ManifoldTensor
+
+from hypll.tensors import ManifoldTensor, TangentTensor
 
 
 class HyperbolicVIT(nn.Module):
@@ -114,9 +118,6 @@ class HyperbolicVIT(nn.Module):
         self.vit = timm.create_model(vit_name, pretrained=pretrained)
         self.remove_head()
         self.fc = nn.Linear(vit_dim, emb_dim)
-        self.vit_name = vit_name
-        self.vit_dim = vit_dim
-        self.emb_dim = emb_dim
         self.manifold = manifold
         self.clip_r = clip_r
 
@@ -148,17 +149,29 @@ hvit = HyperbolicVIT(
 
 # --------------------
 
-import torch.optim as optim
 import torch.nn.functional as F
+import torch.optim as optim
 
 
 def pairwise_cross_entropy_loss(
-    z_i: ManifoldTensor, z_j: ManifoldTensor, manifold: PoincareBall, tau: float
+    z_0: ManifoldTensor,
+    z_1: ManifoldTensor,
+    manifold: PoincareBall,
+    tau: float,
 ) -> torch.Tensor:
-    return NotImplementedError
+    dist_f = lambda x, y: manifold.dist_matrix(x, y)
+    batch_size = z_0.shape[0]
+    target = torch.arange(batch_size, device=device)
+    eye_mask = torch.eye(batch_size, device=device) * 1e9
+    logits00 = dist_f(z_0, z_0) / tau - eye_mask
+    logits01 = dist_f(z_0, z_1) / tau
+    logits = torch.cat([logits01, logits00], dim=1)
+    logits -= logits.max(1, keepdim=True)[0].detach()
+    loss = F.cross_entropy(logits, target)
+    return loss
 
 
-criterion = lambda z_i, z_j: pairwise_cross_entropy_loss(z_i, z_j, manifold=manifold, tau=0.2)
+criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=manifold, tau=0.2)
 optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 # --------------------
@@ -167,7 +180,7 @@ num_epochs = 2
 for epoch in range(num_epochs):
     sampler.set_epoch(epoch)
     running_loss = 0.0
-    for data in enumerate(trainloader):
+    for d_i, data in enumerate(trainloader):
         # get the inputs; data is a list of [inputs, labels]
         inputs = data[0].to(device)
 
@@ -176,18 +189,21 @@ for epoch in range(num_epochs):
 
         # forward + backward + optimize
         bs = len(inputs)
-        z = hvit(inputs).view(bs // m_per_class, m_per_class, hvit.emb_dim)
+        z = hvit(inputs).tensor.view(bs // m_per_class, m_per_class, -1)
         loss = 0
         for i in range(m_per_class):
             for j in range(m_per_class):
                 if i != j:
-                    loss += criterion(z[:, i], z[:, j])
+                    z_i = ManifoldTensor(z[:, i], manifold=manifold)
+                    z_j = ManifoldTensor(z[:, j], manifold=manifold)
+                    loss += criterion(z_i, z_j)
         loss.backward()
         optimizer.step()
 
         # print statistics
         running_loss += loss.item()
-        if i % 100 == 99:  # print every 100 mini-batches
-            print(f"[{epoch + 1}, {i + 1:5d}] loss: {loss.item():.3f}")
+        if d_i % 10 == 9:  # print every 10 mini-batches
+            print(f"[{epoch + 1}, {d_i + 1:5d}] loss: {loss.item()/10:.3f}")
+            running_loss = 0.0
 
 print("Finished Training")
