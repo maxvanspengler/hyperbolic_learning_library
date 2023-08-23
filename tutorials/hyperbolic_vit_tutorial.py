@@ -22,10 +22,11 @@ manifold = PoincareBall(c=Curvature(value=0.1, requires_grad=False))
 
 import collections
 
-import torchvision
 import torchvision.transforms as transforms
+from fastai.data.external import URLs, untar_data
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
+from torchvision.datasets import ImageFolder
 
 
 def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
@@ -42,7 +43,7 @@ def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
 
 
 class UniqueClassSampler(Sampler):
-    def __init__(self, labels: list, m_per_class: int, seed: int):
+    def __init__(self, labels, m_per_class, seed):
         self.length = len(labels) * m_per_class
         self.labels_to_indices = get_labels_to_indices(labels)
         self.labels = sorted(list(self.labels_to_indices.keys()))
@@ -53,7 +54,7 @@ class UniqueClassSampler(Sampler):
     def __len__(self):
         return self.length
 
-    def set_epoch(self, epoch: int):
+    def set_epoch(self, epoch):
         self.epoch = epoch
 
     def __iter__(self):
@@ -61,7 +62,7 @@ class UniqueClassSampler(Sampler):
         g = torch.Generator()
         g.manual_seed(self.seed * 10000 + self.epoch)
         idx = torch.randperm(len(self.labels), generator=g).tolist()
-        max_indices = np.max(list(self.labels_to_indices.values()))
+        max_indices = np.max([len(v) for v in self.labels_to_indices.values()])
         for i in idx:
             t = self.labels_to_indices[self.labels[i]]
             idx_list.append(np.random.choice(t, size=self.m_per_class * max_indices))
@@ -72,29 +73,54 @@ class UniqueClassSampler(Sampler):
 
 # --------------------
 
-transform = transforms.Compose(
+path = untar_data(URLs.IMAGENETTE_320)
+imagenette_classes = [
+    "tench",
+    "English springer",
+    "cassette player",
+    "chain saw",
+    "church",
+    "French horn",
+    "garbage truck",
+    "gas pump",
+    "golf ball",
+    "parachute",
+]
+
+train_transform = transforms.Compose(
     [
-        transforms.Resize((224, 224)),
+        transforms.Resize(256),
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
+trainset = ImageFolder(path / "train", transform=train_transform)
+trainset.classes = imagenette_classes
 
-trainset = torchvision.datasets.CIFAR10(
-    root="./data", train=True, download=True, transform=transform
+val_transform = transforms.Compose(
+    [
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ]
 )
+valset = ImageFolder(path / "val", transform=val_transform)
+valset.classes = imagenette_classes
 
-testset = torchvision.datasets.CIFAR10(
-    root="./data", train=False, download=True, transform=transform
-)
-
-n_sampled_labels = 10
+n_sampled_labels = 16
 m_per_class = 2
 batch_size = n_sampled_labels * m_per_class
 
 sampler = UniqueClassSampler(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
 
-trainloader = DataLoader(dataset=trainset, sampler=sampler, batch_size=batch_size)
+trainloader = DataLoader(
+    dataset=trainset,
+    sampler=sampler,
+    batch_size=batch_size,
+)
 
 # --------------------
 
