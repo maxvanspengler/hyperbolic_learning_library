@@ -24,7 +24,7 @@ import collections
 
 import torchvision.transforms as transforms
 from fastai.data.external import URLs, untar_data
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.utils.data.sampler import Sampler
 from torchvision.datasets import ImageFolder
 
@@ -108,6 +108,8 @@ val_transform = transforms.Compose(
     ]
 )
 valset = ImageFolder(path / "val", transform=val_transform)
+subset = np.random.choice(len(valset), size=1000, replace=False)
+valset = Subset(valset, subset)
 valset.classes = imagenette_classes
 
 n_sampled_labels = 16
@@ -120,6 +122,13 @@ trainloader = DataLoader(
     dataset=trainset,
     sampler=sampler,
     batch_size=batch_size,
+    num_workers=8,
+)
+
+valloader = DataLoader(
+    dataset=valset,
+    batch_size=batch_size,
+    num_workers=8,
 )
 
 # --------------------
@@ -202,6 +211,41 @@ optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 # --------------------
 
+k = 10
+
+
+def eval_recall_k(k):
+    def get_embeddings():
+        embs = []
+        hvit.eval()
+        for data in valloader:
+            x = data[0].to(device)
+            with torch.no_grad():
+                z = hvit(x).tensor
+            embs.append(z)
+        embs = torch.cat(embs, dim=0)
+        hvit.train()
+        return embs
+
+    def get_recall_k(embs):
+        embs_ = ManifoldTensor(embs, manifold=manifold)
+        dist_matrix = -manifold.dist_matrix(embs_, embs_)
+        dist_matrix.diagonal().fill_(torch.inf)
+        dist_matrix = torch.nan_to_num(dist_matrix, nan=torch.inf)
+        dist_matrix = -dist_matrix
+
+        targets = np.array(valset.dataset.targets)[valset.indices]
+        top_k = targets[dist_matrix.topk(k).indices]
+        retrieved = (top_k == targets[:, None]).sum(-1)
+        relevant = np.bincount(targets)[targets]
+        recall_k = np.mean(retrieved / relevant)
+        return recall_k
+
+    return get_recall_k(get_embeddings())
+
+
+# --------------------
+
 num_epochs = 2
 for epoch in range(num_epochs):
     sampler.set_epoch(epoch)
@@ -229,7 +273,10 @@ for epoch in range(num_epochs):
         # print statistics
         running_loss += loss.item()
         if d_i % 10 == 9:  # print every 10 mini-batches
-            print(f"[{epoch + 1}, {d_i + 1:5d}] loss: {loss.item()/10:.3f}")
+            recall_k = eval_recall_k(k)
+            print(
+                f"[{epoch + 1}, {d_i + 1:5d}] loss: {loss.item()/10:.3f} recall@{k}: {recall_k:.3f}"
+            )
             running_loss = 0.0
 
 print("Finished Training")
