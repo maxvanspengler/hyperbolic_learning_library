@@ -26,7 +26,7 @@ import collections
 
 import torchvision.transforms as transforms
 from fastai.data.external import URLs, untar_data
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 from torchvision.datasets import ImageFolder
 import multiprocessing
@@ -45,7 +45,7 @@ def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
     return labels_to_indices
 
 
-class UniqueClassSampler1(Sampler):
+class UniqueClassSampler(Sampler):
     def __init__(self, labels, m_per_class, seed):
         self.length = len(labels) * m_per_class
         self.labels_to_indices = get_labels_to_indices(labels)
@@ -73,34 +73,6 @@ class UniqueClassSampler1(Sampler):
         idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
         return iter(idx_list)
     
-class UniqueClassSampler2(Sampler):
-    def __init__(self, labels, m_per_class, seed):
-        self.labels_to_indices = get_labels_to_indices(labels)
-        self.labels = sorted(list(self.labels_to_indices.keys()))
-        self.m_per_class = m_per_class
-        self.seed = seed
-        self.epoch = 0
-
-    def __len__(self):
-        return len(self.labels) * self.m_per_class
-    
-    def set_epoch(self, epoch):
-        self.epoch = epoch
-
-    def __iter__(self):
-        idx_list = []
-        g = torch.Generator()
-        g.manual_seed(self.seed * 10000 + self.epoch)
-        idx = torch.randperm(len(self.labels), generator=g).tolist()
-        for i in idx:
-            t = self.labels_to_indices[self.labels[i]]
-            replace = len(t) < self.m_per_class
-            idx_list += np.random.choice(t, size=self.m_per_class, replace=replace).tolist()
-        return iter(idx_list)
-
-    
-
-
 # --------------------
 
 path = untar_data(URLs.IMAGENETTE_320)
@@ -139,11 +111,11 @@ val_transform = transforms.Compose(
 valset = ImageFolder(path / "val", transform=val_transform)
 valset.classes = imagenette_classes
 
-n_sampled_labels = 450
+n_sampled_labels = 10
 m_per_class = 2
 batch_size = n_sampled_labels * m_per_class
 
-sampler = UniqueClassSampler2(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
+sampler = UniqueClassSampler(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
 
 trainloader = DataLoader(
     dataset=trainset,
@@ -250,7 +222,7 @@ optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 # --------------------
 
-k = 10
+k = 100
 
 
 def eval_recall_k(k):
@@ -273,7 +245,7 @@ def eval_recall_k(k):
         dist_matrix = torch.nan_to_num(dist_matrix, nan=torch.inf)
         dist_matrix = -dist_matrix
 
-        targets = np.array(valset.dataset.targets)[valset.indices]
+        targets = np.array(valset.targets)
         top_k = targets[dist_matrix.topk(k).indices.cpu().numpy()]
         retrieved = (top_k == targets[:, None]).sum(-1)
         relevant = np.bincount(targets)[targets]
