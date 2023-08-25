@@ -235,7 +235,7 @@ def eval_recall_k(k):
         dist_matrix = -dist_matrix
 
         targets = np.array(valset.dataset.targets)[valset.indices]
-        top_k = targets[dist_matrix.topk(k).indices]
+        top_k = targets[dist_matrix.topk(k).indices.cpu().numpy()]
         retrieved = (top_k == targets[:, None]).sum(-1)
         relevant = np.bincount(targets)[targets]
         recall_k = np.mean(retrieved / relevant)
