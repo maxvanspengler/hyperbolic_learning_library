@@ -14,22 +14,26 @@ random.seed(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-# --------------------
+#################################
+# Define hyperbolic manifold
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
 manifold = PoincareBall(c=Curvature(value=0.1, requires_grad=False))
 
-# --------------------
+#################################
+# Samplers for positive pairs
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import collections
+import multiprocessing
 
 import torchvision.transforms as transforms
 from fastai.data.external import URLs, untar_data
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 from torchvision.datasets import ImageFolder
-import multiprocessing
 
 
 def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
@@ -45,7 +49,40 @@ def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
     return labels_to_indices
 
 
-class UniqueClassSampler(Sampler):
+# Obtained from original implementation (https://github.com/htdt/hyp_metric/blob/master/sampler.py)
+# As far as I understand, it only allows for one batch per epoch, containing m_per_class examples per class
+
+
+class UniqueClassSampler1(Sampler):
+    def __init__(self, labels, m_per_class, seed):
+        self.labels_to_indices = get_labels_to_indices(labels)
+        self.labels = sorted(list(self.labels_to_indices.keys()))
+        self.m_per_class = m_per_class
+        self.seed = seed
+        self.epoch = 0
+
+    def __len__(self):
+        return len(self.labels) * self.m_per_class
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+
+    def __iter__(self):
+        idx_list = []
+        g = torch.Generator()
+        g.manual_seed(self.seed * 10000 + self.epoch)
+        idx = torch.randperm(len(self.labels), generator=g).tolist()
+        for i in idx:
+            t = self.labels_to_indices[self.labels[i]]
+            replace = len(t) < self.m_per_class
+            idx_list += np.random.choice(t, size=self.m_per_class, replace=replace).tolist()
+        return iter(idx_list)
+
+
+# An alternative sampler, I made some changes to go through the whole dataset in one epoch
+
+
+class UniqueClassSampler2(Sampler):
     def __init__(self, labels, m_per_class, seed):
         self.length = len(labels) * m_per_class
         self.labels_to_indices = get_labels_to_indices(labels)
@@ -72,8 +109,11 @@ class UniqueClassSampler(Sampler):
         idx_list = np.stack(idx_list).reshape(len(self.labels), -1, self.m_per_class)
         idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
         return iter(idx_list)
-    
-# --------------------
+
+
+######################################
+# Imagenette datasets and dataloaders
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 path = untar_data(URLs.IMAGENETTE_320)
 imagenette_classes = [
@@ -115,7 +155,7 @@ n_sampled_labels = 10
 m_per_class = 2
 batch_size = n_sampled_labels * m_per_class
 
-sampler = UniqueClassSampler(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
+sampler = UniqueClassSampler2(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
 
 trainloader = DataLoader(
     dataset=trainset,
@@ -134,7 +174,10 @@ valloader = DataLoader(
     drop_last=False,
 )
 
-# --------------------
+#######################################
+# Define Hyperbolic Vision Transformer
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 import timm
 from torch import nn
@@ -185,6 +228,7 @@ class HyperbolicVIT(nn.Module):
         def fr(m):
             for param in m.parameters():
                 param.requires_grad = False
+
         fr(self.vit.patch_embed)
         fr(self.vit.pos_drop)
 
@@ -193,7 +237,9 @@ hvit = HyperbolicVIT(
     vit_name="vit_small_patch16_224", vit_dim=384, emb_dim=128, manifold=manifold, clip_r=2.3
 ).to(device)
 
-# --------------------
+#######################################
+# Define loss function and optimizer
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch.nn.functional as F
 import torch.optim as optim
@@ -220,7 +266,9 @@ def pairwise_cross_entropy_loss(
 criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=manifold, tau=0.2)
 optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
-# --------------------
+################################
+# Evaluation through recall@k
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 k = 100
 
@@ -255,7 +303,9 @@ def eval_recall_k(k):
     return get_recall_k(get_embeddings())
 
 
-# --------------------
+######################
+# Train the network
+# ^^^^^^^^^^^^^^^^^^^^
 
 num_epochs = 100
 for epoch in range(num_epochs):
@@ -286,7 +336,11 @@ for epoch in range(num_epochs):
         # print statistics
         running_loss += loss.item() * bs
         num_samples += bs
-    recall_k = eval_recall_k(k)
-    print(f"[Epoch {epoch + 1}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}")
+        if d_i % 10 == 9:
+            recall_k = eval_recall_k(k)
+            print(
+                f"[Epoch {epoch + 1}, {d_i + 1:5d}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}"
+            )
+            running_loss = 0.0
 
 print("Finished Training")
