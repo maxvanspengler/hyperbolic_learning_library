@@ -33,7 +33,7 @@ def poincare_hyperplane_dists(
     dim_shifted_x = x.movedim(source=dim, destination=-1)
 
     c_sqrt = c.sqrt()
-    lam = 2 * (1 - c * dim_shifted_x.pow(2).sum(dim=-1, keepdim=True))
+    lam = 2 / (1 - c * dim_shifted_x.pow(2).sum(dim=-1, keepdim=True))
     z_norm = z.norm(dim=0).clamp_min(1e-15)
 
     # Computation can be simplified if there is no offset
