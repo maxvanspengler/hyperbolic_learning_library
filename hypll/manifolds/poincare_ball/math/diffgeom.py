@@ -150,7 +150,7 @@ def euc_to_tangent(
     return u / lambda_x**2
 
 
-def dist_matrix(
+def cdist(
     x: torch.Tensor,
     y: torch.Tensor,
     c: torch.Tensor,
@@ -163,11 +163,11 @@ def mobius_add_batch(
     y: torch.Tensor,
     c: torch.Tensor,
 ):
-    xy = torch.einsum("ij,kj->ik", (x, y))
+    xy = torch.einsum("bij,bkj->bik", (x, y))
     x2 = x.pow(2).sum(dim=-1, keepdim=True)
     y2 = y.pow(2).sum(dim=-1, keepdim=True)
-    num = 1 + 2 * c * xy + c * y2.permute(1, 0)
-    num = num.unsqueeze(2) * x.unsqueeze(1)
-    num = num + (1 - c * x2).unsqueeze(2) * y
-    denom = 1 + 2 * c * xy + c**2 * x2 * y2.permute(1, 0)
-    return num / denom.unsqueeze(2).clamp_min(1e-15)
+    num = 1 + 2 * c * xy + c * y2.permute(0, 2, 1)
+    num = num.unsqueeze(3) * x.unsqueeze(2)
+    num = num + (1 - c * x2).unsqueeze(3) * y.unsqueeze(1)
+    denom = 1 + 2 * c * xy + c**2 * x2 * y2.permute(0, 2, 1)
+    return num / denom.unsqueeze(3).clamp_min(1e-15)
