@@ -104,7 +104,7 @@ class ManifoldTensor:
                 break
 
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=output_man_dim)
-    
+
     def __hash__(self):
         # TODO: need to change the hash based on the other ManifoldTensor properties as well.
         return hash(self.tensor)
