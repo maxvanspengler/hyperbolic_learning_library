@@ -105,6 +105,10 @@ class ManifoldTensor:
 
         return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=output_man_dim)
 
+    def __hash__(self):
+        # TODO: need to change the hash based on the other ManifoldTensor properties as well.
+        return hash(self.tensor)
+
     def cpu(self) -> ManifoldTensor:
         """Returns a copy of this object with self.tensor in CPU memory."""
         new_tensor = self.tensor.cpu()
