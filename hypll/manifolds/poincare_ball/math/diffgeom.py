@@ -148,3 +148,26 @@ def euc_to_tangent(
         1 - c * x.pow(2).sum(dim=dim - broadcasted_dim + x.dim(), keepdim=True)
     ).clamp_min(1e-15)
     return u / lambda_x**2
+
+
+def cdist(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    c: torch.Tensor,
+) -> torch.Tensor:
+    return 2 / c.sqrt() * (c.sqrt() * mobius_add_batch(-x, y, c).norm(dim=-1)).atanh()
+
+
+def mobius_add_batch(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    c: torch.Tensor,
+):
+    xy = torch.einsum("bij,bkj->bik", (x, y))
+    x2 = x.pow(2).sum(dim=-1, keepdim=True)
+    y2 = y.pow(2).sum(dim=-1, keepdim=True)
+    num = 1 + 2 * c * xy + c * y2.permute(0, 2, 1)
+    num = num.unsqueeze(3) * x.unsqueeze(2)
+    num = num + (1 - c * x2).unsqueeze(3) * y.unsqueeze(1)
+    denom = 1 + 2 * c * xy + c**2 * x2 * y2.permute(0, 2, 1)
+    return num / denom.unsqueeze(3).clamp_min(1e-15)

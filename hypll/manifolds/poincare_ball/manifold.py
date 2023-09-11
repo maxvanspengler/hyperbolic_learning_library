@@ -19,6 +19,7 @@ from hypll.utils.tensor_utils import (
 )
 
 from .math.diffgeom import (
+    cdist,
     dist,
     euc_to_tangent,
     expmap,
@@ -316,3 +317,6 @@ class PoincareBall(Manifold):
             )
             man_dim = x.man_dim if end_dim > x.man_dim else x.man_dim - len(dimensions_to_flatten)
             return ManifoldTensor(data=flattened, manifold=x.manifold, man_dim=man_dim)
+
+    def cdist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
+        return cdist(x=x.tensor, y=y.tensor, c=self.c())

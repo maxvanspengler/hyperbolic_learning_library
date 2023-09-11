@@ -37,6 +37,10 @@ class Manifold(Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def cdist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
     def euc_to_tangent(self, x: ManifoldTensor, u: ManifoldTensor) -> TangentTensor:
         raise NotImplementedError
 

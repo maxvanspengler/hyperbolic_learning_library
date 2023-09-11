@@ -220,3 +220,6 @@ class Euclidean(Manifold):
             end_dim=end_dim,
         )
         return ManifoldTensor(data=flattened, manifold=x.manifold, man_dim=man_dim)
+
+    def cdist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
+        return torch.cdist(x.tensor, y.tensor)
