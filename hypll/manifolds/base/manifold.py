@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from torch import Tensor
 from torch.nn import Module, Parameter
@@ -106,5 +106,13 @@ class Manifold(Module, ABC):
         dilation: _size_2_t = 1,
         padding: _size_2_t = 0,
         stride: _size_2_t = 1,
+    ) -> ManifoldTensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def cat(
+        self,
+        manifold_tensors: Union[Tuple[ManifoldTensor, ...], List[ManifoldTensor]],
+        dim: int = 0,
     ) -> ManifoldTensor:
         raise NotImplementedError

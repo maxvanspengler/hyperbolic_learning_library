@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, broadcast_shapes, empty, matmul, var
@@ -12,6 +12,7 @@ from hypll.manifolds.base import Manifold
 from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 from hypll.utils.tensor_utils import (
     check_dims_with_broadcasting,
+    check_if_man_dims_match,
     check_tangent_tensor_positions,
 )
 
@@ -223,3 +224,13 @@ class Euclidean(Manifold):
 
     def cdist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
         return torch.cdist(x.tensor, y.tensor)
+
+    def cat(
+        self,
+        manifold_tensors: Union[Tuple[ManifoldTensor, ...], List[ManifoldTensor]],
+        dim: int = 0,
+    ) -> ManifoldTensor:
+        check_if_man_dims_match(manifold_tensors)
+        cat = torch.cat([t.tensor for t in manifold_tensors], dim=dim)
+        man_dim = manifold_tensors[0].man_dim
+        return ManifoldTensor(data=cat, manifold=self, man_dim=man_dim)

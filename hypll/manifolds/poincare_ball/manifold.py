@@ -1,5 +1,5 @@
 import functools
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, empty, eye, no_grad
@@ -15,6 +15,7 @@ from hypll.tensors import ManifoldParameter, ManifoldTensor, TangentTensor
 from hypll.utils.math import beta_func
 from hypll.utils.tensor_utils import (
     check_dims_with_broadcasting,
+    check_if_man_dims_match,
     check_tangent_tensor_positions,
 )
 
@@ -320,3 +321,26 @@ class PoincareBall(Manifold):
 
     def cdist(self, x: ManifoldTensor, y: ManifoldTensor) -> Tensor:
         return cdist(x=x.tensor, y=y.tensor, c=self.c())
+
+    def cat(
+        self,
+        manifold_tensors: Union[Tuple[ManifoldTensor, ...], List[ManifoldTensor]],
+        dim: int = 0,
+    ) -> ManifoldTensor:
+        check_if_man_dims_match(manifold_tensors)
+        if dim == manifold_tensors[0].man_dim:
+            tangent_tensors = [self.logmap(None, t) for t in manifold_tensors]
+            ns = torch.tensor([t.shape[t.man_dim] for t in manifold_tensors])
+            n = ns.sum()
+            beta_ns = beta_func(ns / 2, 0.5)
+            beta_n = beta_func(n / 2, 0.5)
+            cat = torch.cat(
+                [(t.tensor * beta_n) / beta_n_i for (t, beta_n_i) in zip(tangent_tensors, beta_ns)],
+                dim=dim,
+            )
+            new_tensor = TangentTensor(data=cat, manifold=self, man_dim=dim)
+            return self.expmap(new_tensor)
+        else:
+            cat = torch.cat([t.tensor for t in manifold_tensors], dim=dim)
+            man_dim = manifold_tensors[0].man_dim
+            return ManifoldTensor(data=cat, manifold=self, man_dim=man_dim)

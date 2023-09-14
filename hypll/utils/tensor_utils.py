@@ -1,3 +1,5 @@
+from typing import List, Tuple, Union
+
 from torch import broadcast_shapes, equal
 
 from hypll.tensors import ManifoldTensor, TangentTensor
@@ -43,3 +45,22 @@ def check_tangent_tensor_positions(*args: TangentTensor) -> None:
                 raise ValueError(
                     f"Tangent tensors are positioned at the different points on the manifold"
                 )
+
+
+def check_if_man_dims_match(
+    manifold_tensors: Union[Tuple[ManifoldTensor, ...], List[ManifoldTensor]]
+) -> None:
+    iterator = iter(manifold_tensors)
+
+    try:
+        first_item = next(iterator)
+    except StopIteration:
+        return
+
+    for i, x in enumerate(iterator):
+        if x.man_dim != first_item.man_dim:
+            raise ValueError(
+                f"Manifold dimensions of inputs do not match. "
+                f"Input at index [0] has manifold dimension {first_item.man_dim} "
+                f"but input at index [{i + 1}] has manifold dimension {x.man_dim}."
+            )
