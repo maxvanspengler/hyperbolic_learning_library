@@ -88,6 +88,15 @@ class TangentTensor:
                 f"Neither {self.__class__.__name__}, nor torch.Tensor has attribute {name}"
             )
 
+    def __hash__(self):
+        """Returns the Python unique identifier of the object.
+
+        Note: This is how PyTorch implements hash of tensors. See also:
+        https://github.com/pytorch/pytorch/issues/2569.
+
+        """
+        return id(self)
+
     def cuda(self, device=None):
         new_tensor = self.tensor.cuda(device)
         new_manifold_points = self.manifold_points.cuda(device)
