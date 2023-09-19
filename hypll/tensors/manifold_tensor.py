@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import Optional
 
 from torch import Tensor, long, tensor
@@ -114,6 +115,9 @@ class ManifoldTensor:
 
         """
         return id(self)
+
+    def clone(self) -> ManifoldTensor:
+        return copy.deepcopy(self)
 
     def cpu(self) -> ManifoldTensor:
         """Returns a copy of this object with self.tensor in CPU memory."""
