@@ -20,8 +20,16 @@ torch.backends.cudnn.benchmark = False
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
+from hypll.manifolds.euclidean import Euclidean
 
-manifold = PoincareBall(c=Curvature(value=0.1, constraining_strategy=lambda x:x, requires_grad=False))
+do_hyperbolic = False
+
+if do_hyperbolic:
+    manifold = PoincareBall(
+        c=Curvature(value=0, constraining_strategy=lambda x: x, requires_grad=False)
+    )
+else:
+    manifold = Euclidean()
 
 #################################
 # Samplers for positive pairs
@@ -39,8 +47,7 @@ from torchvision.datasets import ImageFolder
 
 def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
     """
-    Creates labels_to_indices, which is a dictionary mapping each label
-    to a numpy array of indices that will be used to index into self.dataset
+    Creates a dictionary mapping each label to a numpy array of indices
     """
     labels_to_indices = collections.defaultdict(list)
     for i, label in enumerate(labels):
@@ -143,7 +150,7 @@ trainset.classes = imagenette_classes
 
 val_transform = transforms.Compose(
     [
-        transforms.Resize(224),
+        transforms.Resize(224, interpolation=transforms.InterpolationMode("bicubic")),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -192,7 +199,7 @@ class HyperbolicViT(nn.Module):
         vit_name: str,
         vit_dim: int,
         emb_dim: int,
-        manifold: PoincareBall,
+        manifold: Union[PoincareBall, Euclidean],
         clip_r: float,
         pretrained: bool = True,
     ):
@@ -209,13 +216,14 @@ class HyperbolicViT(nn.Module):
         if type(x) == tuple:
             x = x[0]
         x = self.fc(x)
-        if manifold.c() == 0:
-            return F.normalize(x, p=2, dim=1)
+        if isinstance(self.manifold, Euclidean):
+            x = F.normalize(x, p=2, dim=1)
+            return ManifoldTensor(data=x, man_dim=1, manifold=self.manifold)
         if self.clip_r is not None:
             x = self.clip_features(x)
         tangents = TangentTensor(data=x, man_dim=1, manifold=self.manifold)
         return self.manifold.expmap(tangents)
-        
+
     def clip_features(self, x: torch.Tensor) -> torch.Tensor:
         x_norm = torch.norm(x, dim=-1, keepdim=True) + 1e-5
         fac = torch.minimum(torch.ones_like(x_norm), self.clip_r / x_norm)
@@ -249,15 +257,12 @@ import torch.optim as optim
 
 
 def pairwise_cross_entropy_loss(
-    z_0: Union[torch.Tensor, ManifoldTensor],
-    z_1: Union[torch.Tensor, ManifoldTensor],
-    manifold: PoincareBall,
+    z_0: ManifoldTensor,
+    z_1: ManifoldTensor,
+    manifold: Union[PoincareBall, Euclidean],
     tau: float,
 ) -> torch.Tensor:
-    if manifold.c() == 0:
-        dist_f = lambda x, y: x @ y.t()
-    else:
-        dist_f = lambda x, y: -manifold.cdist(x.unsqueeze(0), y.unsqueeze(0))[0]
+    dist_f = lambda x, y: -manifold.cdist(x.unsqueeze(0), y.unsqueeze(0))[0]
     num_classes = z_0.shape[0]
     target = torch.arange(num_classes, device=device)
     eye_mask = torch.eye(num_classes, device=device) * 1e9
@@ -276,34 +281,32 @@ optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 # Evaluation through recall@k
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-k = 100
+k = 5
 
-
-def eval_recall_k(k):
+def eval_recall_k(
+        k: int, 
+        model: nn.Module,
+        dataloader: DataLoader,
+        manifold: Union[PoincareBall, Euclidean]):
+    
     def get_embeddings():
         embs = []
-        hvit.eval()
-        for data in valloader:
+        model.eval()
+        for data in dataloader:
             x = data[0].to(device)
             with torch.no_grad():
-                z = hvit(x)
+                z = model(x)
             embs.append(z)
-        embs = torch.cat(embs, dim=0)
-        hvit.train()
+        embs = manifold.cat(embs, dim=0)
+        model.train()
         return embs
 
     def get_recall_k(embs):
-        embs_ = ManifoldTensor(embs, manifold=manifold)
-        dist_matrix = -manifold.cdist(embs_, embs_)
-        dist_matrix.diagonal().fill_(torch.inf)
-        dist_matrix = torch.nan_to_num(dist_matrix, nan=torch.inf)
-        dist_matrix = -dist_matrix
-
-        targets = np.array(valset.targets)
-        top_k = targets[dist_matrix.topk(k).indices.cpu().numpy()]
-        retrieved = (top_k == targets[:, None]).sum(-1)
-        relevant = np.bincount(targets)[targets]
-        recall_k = np.mean(retrieved / relevant)
+        dist_matrix = -manifold.cdist(embs.unsqueeze(0), embs.unsqueeze(0))[0]
+        dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
+        targets = np.array(dataloader.dataset.targets)
+        top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:]]
+        recall_k = np.isin(targets, top_k).sum() / len(targets)
         return recall_k
 
     return get_recall_k(get_embeddings())
@@ -342,8 +345,8 @@ for epoch in range(num_epochs):
         # print statistics
         running_loss += loss.item() * bs
         num_samples += bs
-        if d_i % 20 == 19:
-            recall_k = eval_recall_k(k)
+        if d_i % 1 == 0:
+            recall_k = eval_recall_k(k, hvit, valloader, manifold)
             print(
                 f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}"
             )
