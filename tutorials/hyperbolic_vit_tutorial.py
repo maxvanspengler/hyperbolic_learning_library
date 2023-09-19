@@ -19,8 +19,8 @@ torch.backends.cudnn.benchmark = False
 # Define hyperbolic manifold
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 from hypll.manifolds.euclidean import Euclidean
+from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
 do_hyperbolic = False
 
@@ -283,12 +283,10 @@ optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 k = 5
 
+
 def eval_recall_k(
-        k: int, 
-        model: nn.Module,
-        dataloader: DataLoader,
-        manifold: Union[PoincareBall, Euclidean]):
-    
+    k: int, model: nn.Module, dataloader: DataLoader, manifold: Union[PoincareBall, Euclidean]
+):
     def get_embeddings():
         embs = []
         model.eval()
