@@ -169,19 +169,19 @@ class ManifoldTensor:
                 New shape of the manifold tensor.
             new_man_dim:
                 New dimension along which points are on the manifold.
-                None by default, which means that the old manifold dimension is selected.
+                None by default, which means that the old manifold dimension is selected using negative indexing.
         """
+        new_tensor = self.tensor.reshape(shape)
         curr_man_dim = self.man_dim - self.tensor.dim() if self.man_dim >= 0 else self.man_dim
         if new_man_dim is None:
             new_man_dim = curr_man_dim
         new_man_dim = new_man_dim - len(shape) if new_man_dim >= 0 else new_man_dim
-        if shape[new_man_dim] != self.shape[curr_man_dim]:
+        if new_tensor.shape[new_man_dim] != self.shape[curr_man_dim]:
             raise ValueError(
                 f"Attempting to reshape using new_man_dim = {new_man_dim + len(shape)}, "
-                f"but the new manifold dimension size {shape[new_man_dim]} "
+                f"but the new manifold dimension size {new_tensor.shape[new_man_dim]} "
                 f"does not match the old manifold dimension size {self.shape[curr_man_dim]}."
             )
-        new_tensor = self.tensor.reshape(shape)
         return ManifoldTensor(
             data=new_tensor, manifold=self.manifold, man_dim=new_man_dim + len(shape)
         )
