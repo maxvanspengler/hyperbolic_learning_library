@@ -186,7 +186,7 @@ from torch import nn
 from hypll.tensors import ManifoldTensor, TangentTensor
 
 
-class HyperbolicVIT(nn.Module):
+class HyperbolicViT(nn.Module):
     def __init__(
         self,
         vit_name: str,
@@ -236,7 +236,7 @@ class HyperbolicVIT(nn.Module):
         fr(self.vit.pos_drop)
 
 
-hvit = HyperbolicVIT(
+hvit = HyperbolicViT(
     vit_name="vit_small_patch16_224", vit_dim=384, emb_dim=128, manifold=manifold, clip_r=2.3
 ).to(device)
 
@@ -254,10 +254,10 @@ def pairwise_cross_entropy_loss(
     manifold: PoincareBall,
     tau: float,
 ) -> torch.Tensor:
-    if manifold.c() != 0:
-        dist_f = lambda x, y: -manifold.cdist(x.unsqueeze(0), y.unsqueeze(0))[0]
-    else:
+    if manifold.c() == 0:
         dist_f = lambda x, y: x @ y.t()
+    else:
+        dist_f = lambda x, y: -manifold.cdist(x.unsqueeze(0), y.unsqueeze(0))[0]
     num_classes = z_0.shape[0]
     target = torch.arange(num_classes, device=device)
     eye_mask = torch.eye(num_classes, device=device) * 1e9
@@ -286,7 +286,7 @@ def eval_recall_k(k):
         for data in valloader:
             x = data[0].to(device)
             with torch.no_grad():
-                z = hvit(x).tensor
+                z = hvit(x)
             embs.append(z)
         embs = torch.cat(embs, dim=0)
         hvit.train()
@@ -327,7 +327,7 @@ for epoch in range(num_epochs):
 
         # forward + backward + optimize
         bs = len(inputs)
-        z = hvit(inputs).view(bs // m_per_class, m_per_class, -1)
+        z = hvit(inputs).reshape((bs // m_per_class, m_per_class, -1))
         loss = 0
         for i in range(m_per_class):
             for j in range(m_per_class):
@@ -342,11 +342,12 @@ for epoch in range(num_epochs):
         # print statistics
         running_loss += loss.item() * bs
         num_samples += bs
-        # if d_i % 10 == 9:
-        recall_k = eval_recall_k(k)
-        print(
-            f"[Epoch {epoch + 1}, {d_i + 1:5d}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}"
-        )
-        running_loss = 0.0
+        if d_i % 20 == 19:
+            recall_k = eval_recall_k(k)
+            print(
+                f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}"
+            )
+            running_loss = 0.0
+            num_samples = 0
 
 print("Finished Training")
