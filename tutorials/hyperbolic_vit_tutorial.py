@@ -22,11 +22,11 @@ torch.backends.cudnn.benchmark = False
 from hypll.manifolds.euclidean import Euclidean
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
-do_hyperbolic = False
+do_hyperbolic = True
 
 if do_hyperbolic:
     manifold = PoincareBall(
-        c=Curvature(value=0, constraining_strategy=lambda x: x, requires_grad=False)
+        c=Curvature(value=0.1, constraining_strategy=lambda x: x, requires_grad=False)
     )
 else:
     manifold = Euclidean()
@@ -303,7 +303,7 @@ def eval_recall_k(
         dist_matrix = -manifold.cdist(embs.unsqueeze(0), embs.unsqueeze(0))[0]
         dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
         targets = np.array(dataloader.dataset.targets)
-        top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:]]
+        top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].cpu().numpy()]
         recall_k = np.isin(targets, top_k).sum() / len(targets)
         return recall_k
 
