@@ -304,7 +304,8 @@ def eval_recall_k(
         dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
         targets = np.array(dataloader.dataset.targets)
         top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].cpu().numpy()]
-        recall_k = np.isin(targets, top_k).sum() / len(targets)
+        recall_k = (targets.T[:, None] == top_k).max(axis=0).sum() / len(targets)
+
         return recall_k
 
     return get_recall_k(get_embeddings())
