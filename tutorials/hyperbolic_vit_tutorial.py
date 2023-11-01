@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = False
 from hypll.manifolds.euclidean import Euclidean
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
-do_hyperbolic = True
+do_hyperbolic = False
 
 if do_hyperbolic:
     manifold = PoincareBall(
@@ -38,11 +38,12 @@ else:
 import collections
 import multiprocessing
 
+import pandas as pd
 import torchvision.transforms as transforms
 from fastai.data.external import URLs, untar_data
-from torch.utils.data import DataLoader
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.sampler import Sampler
-from torchvision.datasets import ImageFolder
 
 
 def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
@@ -123,19 +124,41 @@ class UniqueClassSampler2(Sampler):
 # Imagenette datasets and dataloaders
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-path = untar_data(URLs.IMAGENETTE_320)
-imagenette_classes = [
-    "tench",
-    "English springer",
-    "cassette player",
-    "chain saw",
-    "church",
-    "French horn",
-    "garbage truck",
-    "gas pump",
-    "golf ball",
-    "parachute",
-]
+path = untar_data(URLs.CUB_200_2011) / "CUB_200_2011"
+
+
+class CUB(Dataset):
+    def __init__(self, files_path, train, transform):
+        self.files_path = files_path
+        self.transform = transform
+
+        self.targets = pd.read_csv(files_path / "image_class_labels.txt", header=None, sep=" ")
+        self.targets.columns = ["id", "target"]
+        self.targets = self.targets["target"].values
+
+        self.train_test = pd.read_csv(files_path / "train_test_split.txt", header=None, sep=" ")
+        self.train_test.columns = ["id", "is_train"]
+
+        self.images = pd.read_csv(files_path / "images.txt", header=None, sep=" ")
+        self.images.columns = ["id", "name"]
+
+        mask = self.train_test.is_train.values == int(train)
+
+        self.filenames = self.images.iloc[mask]
+        self.targets = self.targets[mask]
+        self.num_files = len(self.targets)
+
+    def __len__(self):
+        return self.num_files
+
+    def __getitem__(self, index):
+        y = self.targets[index] - 1
+        file_name = self.filenames.iloc[index, 1]
+        path = self.files_path / "images" / file_name
+        x = Image.open(path).convert("RGB")
+        x = self.transform(x)
+        return x, y
+
 
 train_transform = transforms.Compose(
     [
@@ -145,8 +168,7 @@ train_transform = transforms.Compose(
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
-trainset = ImageFolder(path / "train", transform=train_transform)
-trainset.classes = imagenette_classes
+trainset = CUB(path, train=True, transform=train_transform)
 
 val_transform = transforms.Compose(
     [
@@ -156,8 +178,7 @@ val_transform = transforms.Compose(
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
-valset = ImageFolder(path / "val", transform=val_transform)
-valset.classes = imagenette_classes
+valset = CUB(path, train=False, transform=val_transform)
 
 n_sampled_labels = 10
 m_per_class = 2
