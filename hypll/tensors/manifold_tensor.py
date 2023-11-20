@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import copy
 from typing import Optional
 
 from torch import Tensor, long, tensor
-from torch.nn.common_types import _size_any_t
 
 from hypll.manifolds import Manifold
 
