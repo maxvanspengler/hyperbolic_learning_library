@@ -93,9 +93,9 @@ class UniqueClassSampler1(Sampler):
 
 class UniqueClassSampler2(Sampler):
     def __init__(self, labels, m_per_class, seed):
-        self.length = len(labels) * m_per_class
         self.labels_to_indices = get_labels_to_indices(labels)
         self.labels = sorted(list(self.labels_to_indices.keys()))
+        self.length = np.max([len(v) for v in self.labels_to_indices.values()]) * m_per_class * len(self.labels)
         self.m_per_class = m_per_class
         self.seed = seed
         self.epoch = 0
@@ -162,7 +162,7 @@ class CUB(Dataset):
 
 train_transform = transforms.Compose(
     [
-        transforms.RandomResizedCrop(224, interpolation=transforms.InterpolationMode("bicubic")),
+        transforms.RandomResizedCrop(224, scale=(0.9, 1.0), interpolation=transforms.InterpolationMode("bicubic")),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -180,7 +180,7 @@ val_transform = transforms.Compose(
 )
 valset = CUB(path, train=False, transform=val_transform)
 
-n_sampled_labels = 10
+n_sampled_labels = 128
 m_per_class = 2
 batch_size = n_sampled_labels * m_per_class
 
@@ -356,7 +356,7 @@ for epoch in range(num_epochs):
             for j in range(m_per_class):
                 if i != j:
                     z_i = z[:, i]
-                    z_j = z[:, i]
+                    z_j = z[:, j]
                     loss += criterion(z_i, z_j)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(hvit.parameters(), 3)
