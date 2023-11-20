@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = False
 from hypll.manifolds.euclidean import Euclidean
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
-do_hyperbolic = False
+do_hyperbolic = True
 
 if do_hyperbolic:
     manifold = PoincareBall(
@@ -320,11 +320,11 @@ def eval_recall_k(
         return embs
 
     def get_recall_k(embs):
-        dist_matrix = -manifold.cdist(embs.unsqueeze(0), embs.unsqueeze(0))[0]
+        dist_matrix = -manifold.cpu().cdist(embs.unsqueeze(0).cpu(), embs.unsqueeze(0).cpu())[0]
         dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
         targets = np.array(dataloader.dataset.targets)
-        top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].cpu().numpy()]
-        recall_k = np.mean([i if t in top_k[i] else 0 for i, t in enumerate(targets)])
+        top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].numpy()]
+        recall_k = np.mean([1 if t in top_k[i] else 0 for i, t in enumerate(targets)])
         return recall_k
 
     return get_recall_k(get_embeddings())
@@ -363,10 +363,10 @@ for epoch in range(num_epochs):
         # print statistics
         running_loss += loss.item() * bs
         num_samples += bs
-        if d_i % 1 == 0:
+        if d_i % 10 == 9:
             recall_k = eval_recall_k(k, hvit, valloader, manifold)
             print(
-                f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] loss: {running_loss/num_samples:.3f} recall@{k}: {recall_k:.3f}"
+                f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] train loss: {running_loss/num_samples:.3f} val recall@{k}: {recall_k:.3f}"
             )
             running_loss = 0.0
             num_samples = 0
