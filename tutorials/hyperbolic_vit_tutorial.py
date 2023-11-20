@@ -304,7 +304,6 @@ optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 k = 5
 
-
 def eval_recall_k(
     k: int, model: nn.Module, dataloader: DataLoader, manifold: Union[PoincareBall, Euclidean]
 ):
@@ -325,8 +324,7 @@ def eval_recall_k(
         dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
         targets = np.array(dataloader.dataset.targets)
         top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].cpu().numpy()]
-        recall_k = (targets.T[:, None] == top_k).max(axis=0).sum() / len(targets)
-
+        recall_k = np.mean([i if t in top_k[i] else 0 for i, t in enumerate(targets)])
         return recall_k
 
     return get_recall_k(get_embeddings())
@@ -336,7 +334,7 @@ def eval_recall_k(
 # Train the network
 # ^^^^^^^^^^^^^^^^^^^^
 
-num_epochs = 100
+num_epochs = 5
 for epoch in range(num_epochs):
     sampler.set_epoch(epoch)
     running_loss = 0.0
