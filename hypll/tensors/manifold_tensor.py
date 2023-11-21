@@ -158,31 +158,6 @@ class ManifoldTensor:
         """Projects the tensor to the manifold."""
         return self.manifold.project(x=self)
 
-    def reshape(self, shape: _size_any_t, new_man_dim: Optional[int] = None) -> ManifoldTensor:
-        """Returns a new manifold tensor with the specified shape, preserving the old manifold dimension size.
-
-        Attributes:
-            shape:
-                New shape of the manifold tensor.
-            new_man_dim:
-                New dimension along which points are on the manifold.
-                None by default, which means that the old manifold dimension is selected using negative indexing.
-        """
-        new_tensor = self.tensor.reshape(shape)
-        curr_man_dim = self.man_dim - self.tensor.dim() if self.man_dim >= 0 else self.man_dim
-        if new_man_dim is None:
-            new_man_dim = curr_man_dim
-        new_man_dim = new_man_dim - len(shape) if new_man_dim >= 0 else new_man_dim
-        if new_tensor.shape[new_man_dim] != self.shape[curr_man_dim]:
-            raise ValueError(
-                f"Attempting to reshape using new_man_dim = {new_man_dim + len(shape)}, "
-                f"but the new manifold dimension size {new_tensor.shape[new_man_dim]} "
-                f"does not match the old manifold dimension size {self.shape[curr_man_dim]}."
-            )
-        return ManifoldTensor(
-            data=new_tensor, manifold=self.manifold, man_dim=new_man_dim + len(shape)
-        )
-
     @property
     def shape(self):
         """Alias for size()."""
