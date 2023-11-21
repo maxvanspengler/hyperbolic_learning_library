@@ -432,5 +432,5 @@ recall_k = eval_recall_k(k, hvit, testloader, manifold)
 print(f"Test recall@{k}: {recall_k:.3f}")
 
 # Using the default hyperparameters in this tutorial,
-# we are able to achieve a recall@5 of 0.945 for the Poincaré ball model,
+# we are able to achieve a recall@5 of 0.946 for the Poincaré ball model,
 # and a recall@5 of 0.916 for the Euclidean model.
