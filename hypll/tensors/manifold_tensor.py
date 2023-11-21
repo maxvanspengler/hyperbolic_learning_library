@@ -205,3 +205,9 @@ class ManifoldTensor:
             f"Attempting to apply the torch function {func} on a ManifoldTensor. "
             f"Use ManifoldTensor.tensor as argument to {func} instead."
         )
+
+    def unsqueeze(self, dim: int) -> ManifoldTensor:
+        """Returns a new manifold tensor with a dimension of size one inserted at the specified position."""
+        new_tensor = self.tensor.unsqueeze(dim=dim)
+        new_man_dim = self.man_dim + (1 if dim <= self.man_dim else 0)
+        return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
