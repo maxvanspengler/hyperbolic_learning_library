@@ -14,26 +14,31 @@ Their implementation can be found at:
 
 We will perform the following steps in order:
 
-1. Set the random seed for reproducibility
-2. Initialize the manifold on which the embeddings will be trained
-3. Load the CUB_200_2011 dataset using fastai
-4. Initialize train and test dataloaders
-5. Define the Hyperbolic Vision Transformer model
-6. Define the pairwise cross-entropy loss function
-7. Define the recall@k evaluation metric
-8. Train the model on the training data
-9. Test the model on the test data
+1. Initialize the manifold on which the embeddings will be trained
+2. Load the CUB_200_2011 dataset using fastai
+3. Initialize train and test dataloaders
+4. Define the Hyperbolic Vision Transformer model
+5. Define the pairwise cross-entropy loss function
+6. Define the recall@k evaluation metric
+7. Train the model on the training data
+8. Test the model on the test data
+
+Please make sure to install the following packages before running this script:
+- fastai
+- timm
 
 """
 
-############################################
-# 1. Set the random seed for reproducibility
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#######################################################
+# 0. Set the device and random seed for reproducibility
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import random
 
 import numpy as np
 import torch
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 seed = 0
 
@@ -46,15 +51,17 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 ####################################################################
-# 2. Initialize the manifold on which the embeddings will be trained
+# 1. Initialize the manifold on which the embeddings will be trained
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from hypll.manifolds.euclidean import Euclidean
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
 
+# We can choose between the Poincaré ball model and Euclidean space.
 do_hyperbolic = True
 
 if do_hyperbolic:
+    # We fix the curvature to 0.1 as in the paper (Section 3.2).
     manifold = PoincareBall(
         c=Curvature(value=0.1, constraining_strategy=lambda x: x, requires_grad=False)
     )
@@ -62,7 +69,7 @@ else:
     manifold = Euclidean()
 
 ###############################################
-# 3. Load the CUB_200_2011 dataset using fastai
+# 2. Load the CUB_200_2011 dataset using fastai
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import pandas as pd
@@ -71,10 +78,12 @@ from fastai.data.external import URLs, untar_data
 from PIL import Image
 from torch.utils.data import Dataset
 
+# Download the dataset using fastai.
 path = untar_data(URLs.CUB_200_2011) / "CUB_200_2011"
 
-
 class CUB(Dataset):
+    """Handles the downloaded CUB_200_2011 files."""
+
     def __init__(self, files_path, train, transform):
         self.files_path = files_path
         self.transform = transform
@@ -106,6 +115,8 @@ class CUB(Dataset):
         x = self.transform(x)
         return x, y
 
+# We use the same resizing and data augmentation as in the paper (Section 3.2).
+# Normalization values are taken from the original implementation.
 
 train_transform = transforms.Compose(
     [
@@ -121,7 +132,7 @@ trainset = CUB(path, train=True, transform=train_transform)
 
 test_transform = transforms.Compose(
     [
-        transforms.Resize(224, interpolation=transforms.InterpolationMode("bicubic")),
+        transforms.Resize(256, interpolation=transforms.InterpolationMode("bicubic")),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -130,7 +141,7 @@ test_transform = transforms.Compose(
 testset = CUB(path, train=False, transform=test_transform)
 
 ##########################################
-# 4. Initialize train and test dataloaders
+# 3. Initialize train and test dataloaders
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import collections
@@ -139,39 +150,43 @@ import multiprocessing
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 
-
-def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
-    """
-    Creates a dictionary mapping each label to a numpy array of indices
-    """
-    labels_to_indices = collections.defaultdict(list)
-    for i, label in enumerate(labels):
-        labels_to_indices[label].append(i)
-    for k, v in labels_to_indices.items():
-        labels_to_indices[k] = np.array(v, dtype=int)
-    return labels_to_indices
-
+# We need a dataloader that returns a requested number of images belonging to the same class.
+# This will allow us to compute the pairwise cross-entropy loss.
 
 class UniqueClassSampler(Sampler):
+    """Custom sampler for creating batches with m_per_class samples per class."""
+
     def __init__(self, labels, m_per_class, seed):
-        self.labels_to_indices = get_labels_to_indices(labels)
+        self.labels_to_indices = self.get_labels_to_indices(labels)
         self.labels = sorted(list(self.labels_to_indices.keys()))
-        self.length = (
-            np.max([len(v) for v in self.labels_to_indices.values()])
-            * m_per_class
-            * len(self.labels)
-        )
         self.m_per_class = m_per_class
         self.seed = seed
         self.epoch = 0
 
     def __len__(self):
-        return self.length
+        return (
+            np.max([len(v) for v in self.labels_to_indices.values()])
+            * m_per_class
+            * len(self.labels)
+        )
 
-    def set_epoch(self, epoch):
+    def set_epoch(self, epoch: int):
+        # Update the epoch, so that the random permutation changes.
         self.epoch = epoch
 
+    def get_labels_to_indices(self, labels: list):
+        # Create a dictionary mapping each label to the indices in the dataset
+        labels_to_indices = collections.defaultdict(list)
+        for i, label in enumerate(labels):
+            labels_to_indices[label].append(i)
+        for k, v in labels_to_indices.items():
+            labels_to_indices[k] = np.array(v, dtype=int)
+        return labels_to_indices
+
     def __iter__(self):
+        # Generate a random iteration order for the indices.
+        # For example, if we have 3 classes (A,B,C) and m_per_class=2,
+        # we could get the following indices: [A1, A2, C1, C2, B1, B2].
         idx_list = []
         g = torch.Generator()
         g.manual_seed(self.seed * 10000 + self.epoch)
@@ -184,11 +199,16 @@ class UniqueClassSampler(Sampler):
         idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
         return iter(idx_list)
 
-
-n_sampled_labels = 128
+# First, define how many distinct classes to encounter per batch.
+# The dataset has 200 classes in total, but the number we choose depends on the available memory.
+n_sampled_classes = 128
+# Then, define how many examples per class to encounter per batch.
+# This number must be at least 2. 
 m_per_class = 2
-batch_size = n_sampled_labels * m_per_class
+# Finally, the batch size is determined by our two choices above.
+batch_size = n_sampled_classes * m_per_class
 
+# Note that this sampler is only used during training.
 sampler = UniqueClassSampler(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
 
 trainloader = DataLoader(
@@ -209,7 +229,7 @@ testloader = DataLoader(
 )
 
 ###################################################
-# 5. Define the Hyperbolic Vision Transformer model
+# 4. Define the Hyperbolic Vision Transformer model
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from typing import Union
@@ -231,23 +251,33 @@ class HyperbolicViT(nn.Module):
         pretrained: bool = True,
     ):
         super().__init__()
+        # We use the timm library to load a (pretrained) ViT backbone model.
         self.vit = timm.create_model(vit_name, pretrained=pretrained)
+        # We remove the head of the model, since we won't need it.
         self.remove_head()
-        self.freeze_patch_embed()
         self.fc = nn.Linear(vit_dim, emb_dim)
+        # We freeze the linear projection for patch embeddings as in the paper (Section 3.2).
+        self.freeze_patch_embed()
         self.manifold = manifold
         self.clip_r = clip_r
 
     def forward(self, x: torch.Tensor) -> ManifoldTensor:
+        # We first encode the images using the ViT backbone.
         x = self.vit(x)
         if type(x) == tuple:
             x = x[0]
+        # Then, we project the features into a lower-dimensional space.
         x = self.fc(x)
+        # If we use a Euclidean manifold,
+        # we simply normalize the features to lie on the unit sphere.
         if isinstance(self.manifold, Euclidean):
             x = F.normalize(x, p=2, dim=1)
             return ManifoldTensor(data=x, man_dim=1, manifold=self.manifold)
+        # If we use a Poincaré ball model,
+        # we (optionally) perform feature clipping (Section 2.4),
         if self.clip_r is not None:
             x = self.clip_features(x)
+        # and then map the features to the manifold.
         tangents = TangentTensor(data=x, man_dim=1, manifold=self.manifold)
         return self.manifold.expmap(tangents)
 
@@ -271,18 +301,18 @@ class HyperbolicViT(nn.Module):
         fr(self.vit.pos_drop)
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
+# Initialize the model using the same hyperparameters as in the paper (Section 3.2).
 hvit = HyperbolicViT(
     vit_name="vit_small_patch16_224", vit_dim=384, emb_dim=128, manifold=manifold, clip_r=2.3
 ).to(device)
 
 ####################################################
-# 6. Define the pairwise cross-entropy loss function
+# 5. Define the pairwise cross-entropy loss function
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch.nn.functional as F
 
+# The function is described in Section 2.2 of the paper.
 
 def pairwise_cross_entropy_loss(
     z_0: ManifoldTensor,
@@ -301,13 +331,15 @@ def pairwise_cross_entropy_loss(
     loss = F.cross_entropy(logits, target)
     return loss
 
-
+# We use the same temperature as in the paper (Section 3.2).
 criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=manifold, tau=0.2)
 
 ##########################################
-# 7. Define the recall@k evaluation metric
+# 6. Define the recall@k evaluation metric
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+# Retrieval is performed by computing the distance between the query and all other embeddings.
+# The top-k embeddings with the smallest distance are then used to compute the recall@k metric.
 
 def eval_recall_k(
     k: int, model: nn.Module, dataloader: DataLoader, manifold: Union[PoincareBall, Euclidean]
@@ -336,26 +368,28 @@ def eval_recall_k(
 
 
 #########################################
-# 8. Train the model on the training data
+# 7. Train the model on the training data
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch.optim as optim
 
+# We use the AdamW optimizer with the same hyperparameters as in the paper (Section 3.2).
 optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
+# Training for 5 epochs is enough to achieve good results.
 num_epochs = 5
 for epoch in range(num_epochs):
     sampler.set_epoch(epoch)
     running_loss = 0.0
     num_samples = 0
     for d_i, data in enumerate(trainloader):
-        # get the inputs; data is a list of [inputs, labels]
+        # Get the inputs; data is a list of [inputs, labels]
         inputs = data[0].to(device)
 
-        # zero the parameter gradients
+        # Zero out the parameter gradients
         optimizer.zero_grad()
 
-        # forward + backward + optimize
+        # Forward + backward + optimize
         bs = len(inputs)
         z = hvit(inputs)
         z = ManifoldTensor(
@@ -363,6 +397,7 @@ for epoch in range(num_epochs):
             man_dim=-1,
             manifold=z.manifold,
         )
+        # The loss is computed pair-wise.
         loss = 0
         for i in range(m_per_class):
             for j in range(m_per_class):
@@ -374,7 +409,7 @@ for epoch in range(num_epochs):
         torch.nn.utils.clip_grad_norm_(hvit.parameters(), 3)
         optimizer.step()
 
-        # print statistics
+        # Print statistics every 10 batches.
         running_loss += loss.item() * bs
         num_samples += bs
         if d_i % 10 == 9:
@@ -384,12 +419,18 @@ for epoch in range(num_epochs):
             running_loss = 0.0
             num_samples = 0
 
-print("Finished Training")
+print("Finished training!")
 
 ####################################
-# 9. Test the model on the test data
+# 8. Test the model on the test data
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+# Finally, let's see how well the model performs on the test data.
 
 k = 5
 recall_k = eval_recall_k(k, hvit, testloader, manifold)
 print(f"Test recall@{k}: {recall_k:.3f}")
+
+# Using the default hyperparameters in this tutorial,
+# we are able to achieve a recall@5 of 0.945 for the Poincaré ball model,
+# and a recall@5 of 0.916 for the Euclidean model.
