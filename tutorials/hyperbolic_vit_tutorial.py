@@ -1,10 +1,40 @@
+# -*- coding: utf-8 -*-
+"""
+Training a Hyperbolic Vision Transformer
+========================================
+
+This implementation is based on the "Hyperbolic Vision Transformers: Combining Improvements in Metric Learning"
+paper by Aleksandr Ermolov et al., which can be found at: 
+
+- https://arxiv.org/pdf/2203.10833.pdf
+
+Their implementation can be found at:
+
+- https://github.com/htdt/hyp_metric
+
+We will perform the following steps in order:
+
+1. Set the random seed for reproducibility
+2. Initialize the manifold on which the embeddings will be trained
+3. Load the CUB_200_2011 dataset using fastai
+4. Initialize train and test dataloaders
+5. Define the Hyperbolic Vision Transformer model
+6. Define the pairwise cross-entropy loss function
+7. Define the recall@k evaluation metric
+8. Train the model on the training data
+9. Test the model on the test data
+
+"""
+
+############################################
+# 1. Set the random seed for reproducibility
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 import random
-from typing import Union
 
 import numpy as np
 import torch
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
 seed = 0
 
 torch.manual_seed(seed)
@@ -15,9 +45,9 @@ random.seed(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-#################################
-# Define hyperbolic manifold
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+####################################################################
+# 2. Initialize the manifold on which the embeddings will be trained
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 from hypll.manifolds.euclidean import Euclidean
 from hypll.manifolds.poincare_ball import Curvature, PoincareBall
@@ -31,98 +61,15 @@ if do_hyperbolic:
 else:
     manifold = Euclidean()
 
-#################################
-# Samplers for positive pairs
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-import collections
-import multiprocessing
+###############################################
+# 3. Load the CUB_200_2011 dataset using fastai
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import pandas as pd
 import torchvision.transforms as transforms
 from fastai.data.external import URLs, untar_data
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
-from torch.utils.data.sampler import Sampler
-
-
-def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
-    """
-    Creates a dictionary mapping each label to a numpy array of indices
-    """
-    labels_to_indices = collections.defaultdict(list)
-    for i, label in enumerate(labels):
-        labels_to_indices[label].append(i)
-    for k, v in labels_to_indices.items():
-        labels_to_indices[k] = np.array(v, dtype=int)
-    return labels_to_indices
-
-
-# Obtained from original implementation (https://github.com/htdt/hyp_metric/blob/master/sampler.py)
-# As far as I understand, it only allows for one batch per epoch, containing m_per_class examples per class
-
-
-class UniqueClassSampler1(Sampler):
-    def __init__(self, labels, m_per_class, seed):
-        self.labels_to_indices = get_labels_to_indices(labels)
-        self.labels = sorted(list(self.labels_to_indices.keys()))
-        self.m_per_class = m_per_class
-        self.seed = seed
-        self.epoch = 0
-
-    def __len__(self):
-        return len(self.labels) * self.m_per_class
-
-    def set_epoch(self, epoch):
-        self.epoch = epoch
-
-    def __iter__(self):
-        idx_list = []
-        g = torch.Generator()
-        g.manual_seed(self.seed * 10000 + self.epoch)
-        idx = torch.randperm(len(self.labels), generator=g).tolist()
-        for i in idx:
-            t = self.labels_to_indices[self.labels[i]]
-            replace = len(t) < self.m_per_class
-            idx_list += np.random.choice(t, size=self.m_per_class, replace=replace).tolist()
-        return iter(idx_list)
-
-
-# An alternative sampler, I made some changes to go through the whole dataset in one epoch
-
-
-class UniqueClassSampler2(Sampler):
-    def __init__(self, labels, m_per_class, seed):
-        self.labels_to_indices = get_labels_to_indices(labels)
-        self.labels = sorted(list(self.labels_to_indices.keys()))
-        self.length = np.max([len(v) for v in self.labels_to_indices.values()]) * m_per_class * len(self.labels)
-        self.m_per_class = m_per_class
-        self.seed = seed
-        self.epoch = 0
-
-    def __len__(self):
-        return self.length
-
-    def set_epoch(self, epoch):
-        self.epoch = epoch
-
-    def __iter__(self):
-        idx_list = []
-        g = torch.Generator()
-        g.manual_seed(self.seed * 10000 + self.epoch)
-        idx = torch.randperm(len(self.labels), generator=g).tolist()
-        max_indices = np.max([len(v) for v in self.labels_to_indices.values()])
-        for i in idx:
-            t = self.labels_to_indices[self.labels[i]]
-            idx_list.append(np.random.choice(t, size=self.m_per_class * max_indices))
-        idx_list = np.stack(idx_list).reshape(len(self.labels), -1, self.m_per_class)
-        idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
-        return iter(idx_list)
-
-
-######################################
-# Imagenette datasets and dataloaders
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+from torch.utils.data import Dataset
 
 path = untar_data(URLs.CUB_200_2011) / "CUB_200_2011"
 
@@ -162,7 +109,9 @@ class CUB(Dataset):
 
 train_transform = transforms.Compose(
     [
-        transforms.RandomResizedCrop(224, scale=(0.9, 1.0), interpolation=transforms.InterpolationMode("bicubic")),
+        transforms.RandomResizedCrop(
+            224, scale=(0.9, 1.0), interpolation=transforms.InterpolationMode("bicubic")
+        ),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -170,7 +119,7 @@ train_transform = transforms.Compose(
 )
 trainset = CUB(path, train=True, transform=train_transform)
 
-val_transform = transforms.Compose(
+test_transform = transforms.Compose(
     [
         transforms.Resize(224, interpolation=transforms.InterpolationMode("bicubic")),
         transforms.CenterCrop(224),
@@ -178,13 +127,69 @@ val_transform = transforms.Compose(
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
-valset = CUB(path, train=False, transform=val_transform)
+testset = CUB(path, train=False, transform=test_transform)
+
+##########################################
+# 4. Initialize train and test dataloaders
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+import collections
+import multiprocessing
+
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import Sampler
+
+
+def get_labels_to_indices(labels: list) -> dict[str, np.ndarray]:
+    """
+    Creates a dictionary mapping each label to a numpy array of indices
+    """
+    labels_to_indices = collections.defaultdict(list)
+    for i, label in enumerate(labels):
+        labels_to_indices[label].append(i)
+    for k, v in labels_to_indices.items():
+        labels_to_indices[k] = np.array(v, dtype=int)
+    return labels_to_indices
+
+
+class UniqueClassSampler(Sampler):
+    def __init__(self, labels, m_per_class, seed):
+        self.labels_to_indices = get_labels_to_indices(labels)
+        self.labels = sorted(list(self.labels_to_indices.keys()))
+        self.length = (
+            np.max([len(v) for v in self.labels_to_indices.values()])
+            * m_per_class
+            * len(self.labels)
+        )
+        self.m_per_class = m_per_class
+        self.seed = seed
+        self.epoch = 0
+
+    def __len__(self):
+        return self.length
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+
+    def __iter__(self):
+        idx_list = []
+        g = torch.Generator()
+        g.manual_seed(self.seed * 10000 + self.epoch)
+        idx = torch.randperm(len(self.labels), generator=g).tolist()
+        max_indices = np.max([len(v) for v in self.labels_to_indices.values()])
+        for i in idx:
+            t = self.labels_to_indices[self.labels[i]]
+            idx_list.append(np.random.choice(t, size=self.m_per_class * max_indices))
+        idx_list = np.stack(idx_list).reshape(len(self.labels), -1, self.m_per_class)
+        idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
+        return iter(idx_list)
+
 
 n_sampled_labels = 128
 m_per_class = 2
 batch_size = n_sampled_labels * m_per_class
 
-sampler = UniqueClassSampler2(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
+sampler = UniqueClassSampler(labels=trainset.targets, m_per_class=m_per_class, seed=seed)
 
 trainloader = DataLoader(
     dataset=trainset,
@@ -195,18 +200,19 @@ trainloader = DataLoader(
     drop_last=True,
 )
 
-valloader = DataLoader(
-    dataset=valset,
+testloader = DataLoader(
+    dataset=testset,
     batch_size=batch_size,
     num_workers=multiprocessing.cpu_count(),
     pin_memory=True,
     drop_last=False,
 )
 
-#######################################
-# Define Hyperbolic Vision Transformer
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+###################################################
+# 5. Define the Hyperbolic Vision Transformer model
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+from typing import Union
 
 import timm
 from torch import nn
@@ -265,16 +271,17 @@ class HyperbolicViT(nn.Module):
         fr(self.vit.pos_drop)
 
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 hvit = HyperbolicViT(
     vit_name="vit_small_patch16_224", vit_dim=384, emb_dim=128, manifold=manifold, clip_r=2.3
 ).to(device)
 
-#######################################
-# Define loss function and optimizer
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+####################################################
+# 6. Define the pairwise cross-entropy loss function
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 import torch.nn.functional as F
-import torch.optim as optim
 
 
 def pairwise_cross_entropy_loss(
@@ -296,13 +303,11 @@ def pairwise_cross_entropy_loss(
 
 
 criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=manifold, tau=0.2)
-optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
-################################
-# Evaluation through recall@k
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+##########################################
+# 7. Define the recall@k evaluation metric
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-k = 5
 
 def eval_recall_k(
     k: int, model: nn.Module, dataloader: DataLoader, manifold: Union[PoincareBall, Euclidean]
@@ -330,9 +335,13 @@ def eval_recall_k(
     return get_recall_k(get_embeddings())
 
 
-######################
-# Train the network
-# ^^^^^^^^^^^^^^^^^^^^
+#########################################
+# 8. Train the model on the training data
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+import torch.optim as optim
+
+optimizer = optim.AdamW(hvit.parameters(), lr=3e-5, weight_decay=0.01)
 
 num_epochs = 5
 for epoch in range(num_epochs):
@@ -348,7 +357,12 @@ for epoch in range(num_epochs):
 
         # forward + backward + optimize
         bs = len(inputs)
-        z = hvit(inputs).reshape((bs // m_per_class, m_per_class, -1))
+        z = hvit(inputs)
+        z = ManifoldTensor(
+            data=z.tensor.reshape((bs // m_per_class, m_per_class, -1)),
+            man_dim=-1,
+            manifold=z.manifold,
+        )
         loss = 0
         for i in range(m_per_class):
             for j in range(m_per_class):
@@ -364,11 +378,18 @@ for epoch in range(num_epochs):
         running_loss += loss.item() * bs
         num_samples += bs
         if d_i % 10 == 9:
-            recall_k = eval_recall_k(k, hvit, valloader, manifold)
             print(
-                f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] train loss: {running_loss/num_samples:.3f} val recall@{k}: {recall_k:.3f}"
+                f"[Epoch {epoch + 1}, {d_i + 1:5d}/{len(trainloader)}] train loss: {running_loss/num_samples:.3f}"
             )
             running_loss = 0.0
             num_samples = 0
 
 print("Finished Training")
+
+####################################
+# 9. Test the model on the test data
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+k = 5
+recall_k = eval_recall_k(k, hvit, testloader, manifold)
+print(f"Test recall@{k}: {recall_k:.3f}")
