@@ -81,6 +81,7 @@ from torch.utils.data import Dataset
 # Download the dataset using fastai.
 path = untar_data(URLs.CUB_200_2011) / "CUB_200_2011"
 
+
 class CUB(Dataset):
     """Handles the downloaded CUB_200_2011 files."""
 
@@ -114,6 +115,7 @@ class CUB(Dataset):
         x = Image.open(path).convert("RGB")
         x = self.transform(x)
         return x, y
+
 
 # We use the same resizing and data augmentation as in the paper (Section 3.2).
 # Normalization values are taken from the original implementation.
@@ -152,6 +154,7 @@ from torch.utils.data.sampler import Sampler
 
 # We need a dataloader that returns a requested number of images belonging to the same class.
 # This will allow us to compute the pairwise cross-entropy loss.
+
 
 class UniqueClassSampler(Sampler):
     """Custom sampler for creating batches with m_per_class samples per class."""
@@ -199,11 +202,12 @@ class UniqueClassSampler(Sampler):
         idx_list = idx_list.transpose(1, 0, 2).reshape(-1).tolist()
         return iter(idx_list)
 
+
 # First, define how many distinct classes to encounter per batch.
 # The dataset has 200 classes in total, but the number we choose depends on the available memory.
 n_sampled_classes = 128
 # Then, define how many examples per class to encounter per batch.
-# This number must be at least 2. 
+# This number must be at least 2.
 m_per_class = 2
 # Finally, the batch size is determined by our two choices above.
 batch_size = n_sampled_classes * m_per_class
@@ -314,6 +318,7 @@ import torch.nn.functional as F
 
 # The function is described in Section 2.2 of the paper.
 
+
 def pairwise_cross_entropy_loss(
     z_0: ManifoldTensor,
     z_1: ManifoldTensor,
@@ -331,6 +336,7 @@ def pairwise_cross_entropy_loss(
     loss = F.cross_entropy(logits, target)
     return loss
 
+
 # We use the same temperature as in the paper (Section 3.2).
 criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=manifold, tau=0.2)
 
@@ -340,6 +346,7 @@ criterion = lambda z_0, z_1: pairwise_cross_entropy_loss(z_0, z_1, manifold=mani
 
 # Retrieval is performed by computing the distance between the query and all other embeddings.
 # The top-k embeddings with the smallest distance are then used to compute the recall@k metric.
+
 
 def eval_recall_k(
     k: int, model: nn.Module, dataloader: DataLoader, manifold: Union[PoincareBall, Euclidean]
