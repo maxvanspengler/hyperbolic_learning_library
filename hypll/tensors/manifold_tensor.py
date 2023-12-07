@@ -69,7 +69,11 @@ class ManifoldTensor:
             return ManifoldTensor(data=new_tensor, manifold=self.manifold, man_dim=new_man_dim)
 
         # Convert the args to a list and replace Ellipsis by the correct number of full slices
-        arg_list = list(args[0])
+        if isinstance(args[0], int):
+            arg_list = [args[0]]
+        else:
+            arg_list = list(args[0])
+
         if Ellipsis in arg_list:
             ell_id = arg_list.index(Ellipsis)
             colon_repeats = self.dim() - sum(1 for a in arg_list if a is not None) + 1

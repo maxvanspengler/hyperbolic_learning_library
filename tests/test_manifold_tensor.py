@@ -51,6 +51,13 @@ def test_slicing(manifold_tensor: ManifoldTensor):
         manifold=PoincareBall(Curvature()),
         man_dim=-2,
     )
+
+    # Single index
+    single_index = manifold_tensor[1]
+    assert list(single_index.size()) == [3, 4, 5, 6, 7, 8, 9]
+    assert single_index.man_dim == 5
+
+    # More complicated list of slicing arguments
     sliced_tensor = manifold_tensor[1, None, [0, 2], ..., None, 2:5, :, 1]
     # Explanation of the output size: the dimension of size 2 dissappears because of the integer
     # index. Then, a dim of size 1 is added by None. The size 3 dimension reduces to 2 because
