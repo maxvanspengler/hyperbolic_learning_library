@@ -20,8 +20,12 @@ jobs:
       with:
         path: ${{ env.pythonLocation }}
         key: cache_v2_${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
+    - name: Install Poetry
+      run: |
+        pip install poetry
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
     - name: Install Package
-      run: pip install '.[dev]'
+      run: poetry install
     - name: Run Unit Tests
       run: |
-        pytest tests/
+        poetry run pytest tests/
