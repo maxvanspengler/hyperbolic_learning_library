@@ -1,37 +1,35 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "hypll"
-description = "A framework for hyperbolic learning in PyTorch"
 version = "0.1.1"
-dependencies = [
-    "torch",
-]
+description = "A framework for hyperbolic learning in PyTorch"
+authors = ["Max Spengler", "Philipp Wirth", "Pascal Mettes"]
 
-[project.optional-dependencies]
-dev = [
-    "black",
-    "isort",
-    "pytest",
-    "pytest_mock",
-]
-docs = [
-    "sphinx",
-    "sphinx-copybutton",
-    "sphinx-gallery",
-    "sphinx-tabs",
-    "matplotlib",
-    "networkx",
-    "torchvision",
-]
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "*"
+
+[tool.poetry.dev-dependencies]
+black = "*"
+isort = "*"
+pytest = "*"
+pytest-mock = "*"
+sphinx = "*"
+sphinx-copybutton = "*"
+sphinx-gallery = "*"
+sphinx-tabs = "*"
+matplotlib = "*"
+networkx = "*"
+torchvision = "*"
+
+[tool.poetry.packages]
+include = ["hypll*"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
 
 [tool.isort]
 profile = "black"
-
-[tool.setuptools.packages.find]
-include = ["hypll*"]
