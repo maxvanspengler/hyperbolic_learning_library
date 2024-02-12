@@ -72,6 +72,25 @@ class Manifold(Module, ABC):
         keepdim: bool = False,
     ) -> ManifoldTensor:
         raise NotImplementedError
+    
+    @abstractmethod
+    def attention_midpoint(
+        self,
+        x: ManifoldTensor,
+        w: Optional[Tensor] = None,
+    ) -> ManifoldTensor:
+        """Special midpoint method for the attention mechanism. This is a special case because 
+        a new dimension (target sequence length L_T) is introduced through the weight tensor. This 
+        would lead to an error in the usual midpoint method, as that method assumes the size of
+        the weight tensor to be identical to the size of the input tensor for the batch dimensions.
+
+        Assumed input sizes are of the form:
+            x: [B, L_S, D]
+            w: [B, L_T, L_S]
+
+        Output has shape [B, L_T, D]
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def frechet_variance(
@@ -115,4 +134,21 @@ class Manifold(Module, ABC):
         manifold_tensors: Union[Tuple[ManifoldTensor, ...], List[ManifoldTensor]],
         dim: int = 0,
     ) -> ManifoldTensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def split(
+        self,
+        manifold_tensor: ManifoldTensor,
+        split_size_or_sections: Union[int, list[int]],
+        dim: int = 0,
+    ) -> list[ManifoldTensor]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def attention_similarity(self, queries: ManifoldTensor, keys: ManifoldTensor) -> Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def attention_activation(self, similarities: Tensor) -> Tensor:
         raise NotImplementedError

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 from torch import Tensor, long, tensor
 
@@ -171,6 +171,12 @@ class ManifoldTensor:
             return self.tensor.size()
         else:
             return self.tensor.size(dim)
+        
+    def split(self, split_size_or_sections: Union[int, list[int]], dim: int = 0):
+        """Split tensor into equally sized chunks if possible. Last chunk will be smaller if the 
+        tensor size along the given dimension is not divisible by the split size.
+        """
+        return self.manifold.split(self, split_size_or_sections=split_size_or_sections, dim=dim)
 
     def squeeze(self, dim=None):
         """Returns a squeezed version of the manifold tensor."""

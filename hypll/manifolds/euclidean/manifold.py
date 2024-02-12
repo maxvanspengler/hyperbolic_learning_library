@@ -5,7 +5,7 @@ import torch
 from torch import Tensor, broadcast_shapes, empty, matmul, var
 from torch.nn import Parameter
 from torch.nn.common_types import _size_2_t
-from torch.nn.functional import unfold
+from torch.nn.functional import softmax, unfold
 from torch.nn.init import _calculate_fan_in_and_fan_out, kaiming_uniform_, uniform_
 
 from hypll.manifolds.base import Manifold
@@ -127,7 +127,64 @@ class Euclidean(Manifold):
         w: Optional[Tensor] = None,
         keepdim: bool = False,
     ) -> ManifoldTensor:
-        return self.frechet_mean(x=x, batch_dim=batch_dim, keepdim=keepdim)
+        if isinstance(batch_dim, int):
+            batch_dim = [batch_dim]
+        
+        batch_dim_sizes = list(x.size(d) for d in batch_dim)
+        if list(w.size()) != batch_dim_sizes:
+            raise ValueError(
+                f"Tried to aggregate over dimension(s) {batch_dim} with weights of size {w.size()}, "
+                f"but input has batch dimension size(s) {batch_dim_sizes}"
+            )
+
+        if x.man_dim in batch_dim:
+            raise ValueError(
+                f"Tried to aggregate over dimensions {batch_dim}, but input has manifold "
+                f"dimension {x.man_dim} and cannot aggregate over this dimension"
+            )
+
+        # Output manifold dimension is shifted left for each batch dim that disappears
+        man_dim_shift = sum(bd < x.man_dim for bd in batch_dim)
+        new_man_dim = x.man_dim - man_dim_shift if not keepdim else x.man_dim
+
+        # Unsqueeze w at a few places to have the batch dimensions of x align with w
+        w_size_generator = (s for s in w.size())
+        expanded_w_size = list(next(w_size_generator) if s in batch_dim else 1 for s in range(x.dim()))
+        w = w.view(expanded_w_size)
+
+        # Compute the weighted mean
+        mean_tensor = (w * x.tensor).sum(dim=batch_dim, keepdim=keepdim) / w.sum()
+
+        return ManifoldTensor(data=mean_tensor, manifold=self, man_dim=new_man_dim)
+    
+    def attention_midpoint(
+        self,
+        x: ManifoldTensor,
+        w: Optional[Tensor] = None,
+    ) -> ManifoldTensor:
+        if x.dim() != 3:
+            raise ValueError(f"Expected inputs to have 3 dimensions, but found {x.dim()}")
+        
+        if w.dim() != 3:
+            raise ValueError(f"Expected weights to have 3 dimensions, but found {w.dim()}")
+        
+        if x.size(0) != w.size(0) or x.size(1) != w.size(2):
+            raise ValueError(
+                f"Sizes of inputs and weights indicate either differing batch sizes {x.size(0)}, "
+                f"{w.size(0)} or sequence lengths {x.size(1)}, {w.size(2)}"
+            )
+        
+        if x.man_dim != 2:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 2, but got {x.man_dim}"
+            )
+
+        x = x.unsqueeze(1)
+        w = w.unsqueeze(-1)
+        mean_tensor = (x.tensor * w).sum(dim=2) / w.sum(dim=2)
+        return ManifoldTensor(
+            data=mean_tensor, manifold=self, man_dim=-1
+        )
 
     def frechet_variance(
         self,
@@ -234,3 +291,31 @@ class Euclidean(Manifold):
         cat = torch.cat([t.tensor for t in manifold_tensors], dim=dim)
         man_dim = manifold_tensors[0].man_dim
         return ManifoldTensor(data=cat, manifold=self, man_dim=man_dim)
+
+    def split(
+        self,
+        manifold_tensor: ManifoldTensor,
+        split_size_or_sections: Union[int, list[int]],
+        dim: int = 0,
+    ) -> list[ManifoldTensor]:
+        split_tensors = torch.split(
+            tensor=manifold_tensor.tensor,
+            split_size_or_sections=split_size_or_sections,
+            dim=dim,
+        )
+        return [
+            ManifoldTensor(
+                data=t,
+                manifold=self,
+                man_dim=manifold_tensor.man_dim
+            ) for t in split_tensors
+        ]
+    
+    def attention_similarity(self, queries: ManifoldTensor, keys: ManifoldTensor) -> Tensor:
+        d = queries.size(-1)
+        similarities = torch.matmul(queries.tensor, keys.tensor.transpose(-2, -1))
+        similarities = similarities / sqrt(d)
+        return similarities
+    
+    def attention_activation(self, similarities: Tensor) -> Tensor:
+        return softmax(similarities, dim=-1)

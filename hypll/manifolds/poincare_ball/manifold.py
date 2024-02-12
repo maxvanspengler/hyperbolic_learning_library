@@ -34,7 +34,7 @@ from .math.diffgeom import (
     transp,
 )
 from .math.linalg import poincare_fully_connected, poincare_hyperplane_dists
-from .math.stats import frechet_mean, frechet_variance, midpoint
+from .math.stats import attention_midpoint, frechet_mean, frechet_variance, midpoint
 
 
 class PoincareBall(Manifold):
@@ -190,6 +190,35 @@ class PoincareBall(Manifold):
             x=x.tensor, c=self.c(), man_dim=x.man_dim, batch_dim=batch_dim, w=w, keepdim=keepdim
         )
         return ManifoldTensor(data=new_tensor, manifold=self, man_dim=new_man_dim)
+    
+    def attention_midpoint(
+        self,
+        x: ManifoldTensor,
+        w: Optional[Tensor] = None,
+    ) -> ManifoldTensor:
+        if x.dim() != 3:
+            raise ValueError(f"Expected inputs to have 3 dimensions, but found {x.dim()}")
+        
+        if w.dim() != 3:
+            raise ValueError(f"Expected weights to have 3 dimensions, but found {w.dim()}")
+        
+        if x.size(0) != w.size(0) or x.size(1) != w.size(2):
+            raise ValueError(
+                f"Sizes of inputs and weights indicate either differing batch sizes {x.size(0)}, "
+                f"{w.size(0)} or sequence lengths {x.size(1)}, {w.size(2)}"
+            )
+        
+        if x.man_dim != 2:
+            raise ValueError(
+                f"Expected the manifold dimension of the inputs to be 2, but got {x.man_dim}"
+            )
+        
+        new_tensor = attention_midpoint(
+            x=x.tensor, c=self.c(), w=w,
+        )
+        return ManifoldTensor(
+            data=new_tensor, manifold=self, man_dim=-1
+        )
 
     def frechet_variance(
         self,
@@ -344,3 +373,61 @@ class PoincareBall(Manifold):
             cat = torch.cat([t.tensor for t in manifold_tensors], dim=dim)
             man_dim = manifold_tensors[0].man_dim
             return ManifoldTensor(data=cat, manifold=self, man_dim=man_dim)
+
+    def split(
+        self,
+        manifold_tensor: ManifoldTensor,
+        split_size_or_sections: Union[int, list[int]],
+        dim: int = 0,
+    ) -> list[ManifoldTensor]:
+        # If we don't split along the man_dim we can use PyTorch's split
+        if dim != manifold_tensor.man_dim:
+            split_tensors = torch.split(
+                tensor=manifold_tensor.tensor,
+                split_size_or_sections=split_size_or_sections,
+                dim=dim,
+            )
+            return [
+                ManifoldTensor(
+                    data=t,
+                    manifold=self,
+                    man_dim=manifold_tensor.man_dim
+                ) for t in split_tensors
+            ]
+        
+        man_dim_size = manifold_tensor.size(dim=dim)
+
+        # Replace the split_size_or_sections by a list if an int is given
+        if isinstance(split_size_or_sections, int):
+            ssos = (man_dim_size // split_size_or_sections) * [split_size_or_sections]
+            remainder = man_dim_size % split_size_or_sections
+            if remainder:
+                ssos.append(remainder)
+        else:
+            ssos = split_size_or_sections
+
+        # Map to tangent space
+        v = self.logmap(x=None, y=manifold_tensor)
+
+        # Split and scale
+        v_split_tensors = v.tensor.split(split_size=ssos, dim=dim)
+        beta_n = beta_func(man_dim_size / 2, 0.5)
+        beta_ni = [beta_func(ni / 2, 0.5) for ni in ssos]
+        scaled_v_split_tensors = [bni / beta_n * vt for bni, vt in zip(beta_ni, v_split_tensors)]
+
+        # Map back to manifold and return
+        new_tensors = [
+            TangentTensor(data=svt, manifold=self, man_dim=dim) for svt in scaled_v_split_tensors
+        ]
+        return [
+            self.expmap(v=t) for t in new_tensors
+        ]
+
+    # TODO: Find good default values for tau and gamma -> aren't mentioned in HNN++ paper
+    def attention_similarity(
+        self, queries: ManifoldTensor, keys: ManifoldTensor, tau: float = 10.0, gamma: float = 1.0
+    ) -> Tensor:
+        return -tau * self.cdist(queries, keys) - gamma
+    
+    def attention_activation(self, similarities: Tensor) -> Tensor:
+        return similarities.exp()

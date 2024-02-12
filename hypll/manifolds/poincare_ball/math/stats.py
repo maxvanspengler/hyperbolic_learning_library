@@ -116,7 +116,7 @@ def midpoint(
     else:
         # TODO: test weights
         numerator = (lambda_x * w * x).sum(dim=batch_dim, keepdim=True)
-        denominator = ((lambda_x - 1) * w).sum(dim=batch_dim, keepdim=True)
+        denominator = ((lambda_x - 1) * w.abs()).sum(dim=batch_dim, keepdim=True)
 
     frac = numerator / denominator.clamp_min(1e-15)
     midpoint = 1 / (1 + (1 - c * frac.pow(2).sum(dim=man_dim, keepdim=True)).sqrt()) * frac
@@ -124,6 +124,21 @@ def midpoint(
         midpoint = midpoint.squeeze(dim=batch_dim)
 
     return midpoint
+
+
+def attention_midpoint(
+    x: torch.Tensor, # [B, L_S, D]
+    c: torch.Tensor,
+    w: Optional[torch.Tensor] = None, # [B, L_T, L_S]
+) -> torch.Tensor:
+    x = x.unsqueeze(1) # [B, 1, L_S, D]
+    w = w.unsqueeze(-1) # [B, L_T, L_S, 1]
+    lambda_x = 2 / (1 - c * x.pow(2).sum(dim=3, keepdim=True)).clamp_min(1e-15) # [B, 1, L_S, 1]
+    numerator = (lambda_x * x * w).sum(dim=2, keepdim=True) # [B, L_T, 1, D]
+    denominator = ((lambda_x - 1) * w.abs()).sum(dim=2, keepdim=True) # [B, L_T, 1, 1]
+    frac = numerator / denominator.clamp_min(1e-15) # [B, L_T, 1, D]
+    midpoint = 1 / (1 + (1 - c * frac.pow(2).sum(dim=3, keepdim=True)).sqrt()) * frac # [B, L_T, 1, D]
+    return midpoint.squeeze(dim=2)
 
 
 def frechet_variance(
