@@ -25,6 +25,8 @@ docs = [
     "matplotlib",
     "networkx",
     "torchvision",
+    "timm",
+    "fastai",
 ]
 
 [tool.black]

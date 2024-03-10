@@ -219,7 +219,6 @@ trainloader = DataLoader(
     dataset=trainset,
     sampler=sampler,
     batch_size=batch_size,
-    num_workers=multiprocessing.cpu_count(),
     pin_memory=True,
     drop_last=True,
 )
@@ -227,7 +226,6 @@ trainloader = DataLoader(
 testloader = DataLoader(
     dataset=testset,
     batch_size=batch_size,
-    num_workers=multiprocessing.cpu_count(),
     pin_memory=True,
     drop_last=False,
 )
@@ -364,7 +362,11 @@ def eval_recall_k(
         return embs
 
     def get_recall_k(embs):
-        dist_matrix = -manifold.cpu().cdist(embs.unsqueeze(0).cpu(), embs.unsqueeze(0).cpu())[0]
+        dist_matrix = torch.zeros(embs.shape[0], embs.shape[0])
+        for i in range(embs.shape[0]):
+            dist_matrix[i] = -manifold.cpu().cdist(
+                embs[[i]].unsqueeze(0).cpu(), embs.unsqueeze(0).cpu()
+            )[0]
         dist_matrix = torch.nan_to_num(dist_matrix, nan=-torch.inf)
         targets = np.array(dataloader.dataset.targets)
         top_k = targets[dist_matrix.topk(1 + k).indices[:, 1:].numpy()]
