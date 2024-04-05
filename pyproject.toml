@@ -13,13 +13,16 @@ black = "*"
 isort = "*"
 pytest = "*"
 pytest-mock = "*"
-sphinx = "*"
-sphinx-copybutton = "*"
-sphinx-gallery = "*"
-sphinx-tabs = "*"
-matplotlib = "*"
-networkx = "*"
-torchvision = "*"
+
+[tool.poetry.group.docs.dependencies]
+sphinx-copybutton = "^0.5.2"
+sphinx = "^7.2.6"
+sphinx-gallery = "^0.15.0"
+sphinx-tabs = "^3.4.5"
+torchvision = "^0.17.2"
+matplotlib = "^3.8.4"
+networkx = "^3.2.1"
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
