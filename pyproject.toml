@@ -7,6 +7,15 @@ authors = ["Max Spengler", "Philipp Wirth", "Pascal Mettes"]
 [tool.poetry.dependencies]
 python = "^3.10"
 torch = "*"
+# Optional dependencies for building the docs.
+# Install with poetry install --extras "docs"
+sphinx-copybutton = { version = "^0.5.2", optional = true }
+sphinx = { version = "^7.2.6", optional = true }
+sphinx-gallery = { version = "^0.15.0", optional = true }
+sphinx-tabs = { version = "^3.4.5", optional = true }
+torchvision = { version = "^0.17.2", optional = true }
+matplotlib = { version = "^3.8.4", optional = true }
+networkx = { version = "^3.2.1", optional = true }
 
 [tool.poetry.dev-dependencies]
 black = "*"
@@ -14,15 +23,16 @@ isort = "*"
 pytest = "*"
 pytest-mock = "*"
 
-[tool.poetry.group.docs.dependencies]
-sphinx-copybutton = "^0.5.2"
-sphinx = "^7.2.6"
-sphinx-gallery = "^0.15.0"
-sphinx-tabs = "^3.4.5"
-torchvision = "^0.17.2"
-matplotlib = "^3.8.4"
-networkx = "^3.2.1"
-
+[tool.poetry.extras]
+docs = [
+	"sphinx-copybutton",
+	"sphinx",
+	"sphinx-gallery",
+	"sphinx-tabs",
+	"torchvision",
+	"matplotlib",
+	"networkx",
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
