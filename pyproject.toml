@@ -2,7 +2,7 @@
 name = "hypll"
 version = "0.1.1"
 description = "A framework for hyperbolic learning in PyTorch"
-authors = ["Max Spengler", "Philipp Wirth", "Pascal Mettes"]
+authors = ["Max van Spengler", "Philipp Wirth", "Pascal Mettes"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
