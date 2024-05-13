@@ -1,37 +1,45 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "hypll"
-description = "A framework for hyperbolic learning in PyTorch"
 version = "0.1.1"
-dependencies = [
-    "torch",
+description = "A framework for hyperbolic learning in PyTorch"
+authors = ["Max van Spengler", "Philipp Wirth", "Pascal Mettes"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "*"
+# Optional dependencies for building the docs.
+# Install with poetry install --extras "docs"
+sphinx-copybutton = { version = "^0.5.2", optional = true }
+sphinx = { version = "^7.2.6", optional = true }
+sphinx-gallery = { version = "^0.15.0", optional = true }
+sphinx-tabs = { version = "^3.4.5", optional = true }
+torchvision = { version = "^0.17.2", optional = true }
+matplotlib = { version = "^3.8.4", optional = true }
+networkx = { version = "^3.2.1", optional = true }
+
+[tool.poetry.dev-dependencies]
+black = "*"
+isort = "*"
+pytest = "*"
+pytest-mock = "*"
+
+[tool.poetry.extras]
+docs = [
+	"sphinx-copybutton",
+	"sphinx",
+	"sphinx-gallery",
+	"sphinx-tabs",
+	"torchvision",
+	"matplotlib",
+	"networkx",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "black",
-    "isort",
-    "pytest",
-    "pytest_mock",
-]
-docs = [
-    "sphinx",
-    "sphinx-copybutton",
-    "sphinx-gallery",
-    "sphinx-tabs",
-    "matplotlib",
-    "networkx",
-    "torchvision",
-]
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
 
 [tool.isort]
 profile = "black"
-
-[tool.setuptools.packages.find]
-include = ["hypll*"]
