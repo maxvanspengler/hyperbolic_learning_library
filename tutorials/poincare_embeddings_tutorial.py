@@ -78,6 +78,9 @@ class MammalsEmbeddingDataset(Dataset):
         )
 
         # Then, we sample at most 5 of these negative target nodes...
+        # NOTE: this type of sampling is a straightforward, but inefficient method. If your dataset
+        #       is larger, consider using more efficient sampling methods, as this will otherwise
+        #       form a bottleneck. See (closed) Issue 59 on GitHub for some more information.
         negative_target_sample_size = min(5, len(negative_target_nodes))
         negative_target_nodes_sample = random.sample(
             negative_target_nodes, negative_target_sample_size
