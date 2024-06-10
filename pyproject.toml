@@ -32,6 +32,8 @@ docs = [
 	"torchvision",
 	"matplotlib",
 	"networkx",
+  "timm",
+  "fastai",
 ]
 
 [build-system]
