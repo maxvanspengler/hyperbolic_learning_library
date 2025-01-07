@@ -31,7 +31,7 @@ class Curvature(Module):
     ):
         super(Curvature, self).__init__()
         self.value = Parameter(
-            data=as_tensor(value, dtype=torch.float32),
+            data=as_tensor(value),
             requires_grad=requires_grad,
         )
         self.constraining_strategy = constraining_strategy
